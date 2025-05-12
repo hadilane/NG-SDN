@@ -114,6 +114,11 @@ AUTH_PASSWORD_VALIDATORS = [
 # Users auth
 AUTH_USER_MODEL = 'networkapp.CustomUser'
 
+
+SESSION_COOKIE_AGE = 1800  # 30 mins
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+
+
 # Internationalization
 # https://docs.djangoproject.com/en/5.0/topics/i18n/
 
@@ -130,7 +135,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
 STATIC_URL = '/static/'
-STATICFILES_DIRS = [BASE_DIR / 'Frontend/static']
+STATICFILES_DIRS = [BASE_DIR / 'networkapp' / 'Frontend']
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field

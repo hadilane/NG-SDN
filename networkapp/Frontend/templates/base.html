@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% load static %}
+    <meta charset="UTF-8">
+    <title>{% block title %}NG-SDN App{% endblock %}</title>
+
+    <!-- CSS links -->
+    <link rel="stylesheet" href="{% static 'assets/plugins/bootstrap/css/bootstrap.min.css' %}">
+    <link rel="stylesheet" href="{% static 'assets/css/main.css' %}">
+    <link rel="stylesheet" href="{% static 'assets/css/theme1.css' %}">
+</head>
+<body class="font-montserrat">
+<!-- Page Loader -->
+<div class="page-loader-wrapper">
+    <div class="loader">
+    </div>
+</div>
+
+<div id="main_content">
+    {% include "partials/navbar.html" %}
+    {% include "partials/sidebar.html" %}
+
+    <div class="page">
+        {% block content %}{% endblock %}
+    </div>
+
+    {% include "partials/footer.html" %}
+</div>
+
+<!-- Scripts -->
+<script src="{% static 'assets/bundles/lib.vendor.bundle.js' %}"></script>
+<script src="{% static 'assets/js/core.js' %}"></script>
+
+
+<script src="{% static 'assets/bundles/apexcharts.bundle.js'%}"></script>
+<script src="{% static 'assets/bundles/counterup.bundle.js'%}"></script>
+<script src="{% static 'assets/bundles/knobjs.bundle.js'%}"></script>
+<script src="{% static 'assets/bundles/c3.bundle.js'%}"></script>
+
+
+<script src="{% static 'assets/js/page/project-index.js'%}"></script>
+</body>
+</html>

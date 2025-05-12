@@ -5,8 +5,17 @@ from django.contrib.auth.models import AbstractUser
 
 
 class CustomUser(AbstractUser):
-    is_admin = models.BooleanField(default=False)
-    is_client = models.BooleanField(default=True)
+    USER_TYPE_CHOICES = (
+        ('admin', 'Admin'),
+        ('client', 'Client'),
+    )
+    role = models.CharField(max_length=10, choices=USER_TYPE_CHOICES, default='client')
+
+    def is_admin(self):
+        return self.role == 'admin'
+
+    def is_client(self):
+        return self.role == 'client'
 
 class Overlay(models.Model):
     name = models.CharField(max_length=100)
