@@ -1,0 +1,14 @@
+{% comment %}
+Reusable block to render and style form fields
+Applies Bootstrap form-control styling
+{% endcomment %}
+
+{{ form.non_field_errors }}
+
+{% for field in form %}
+  <div class="form-group">
+      {{ field.label_tag }}
+      {{ field }}
+      {{ field.errors }}
+  </div>
+{% endfor %}

@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="card shadow-sm p-4 rounded-4">
+        <h2 class="mb-4 text-xl font-semibold text-primary">{{ overlay.name }}</h2>
+        <p class="text-muted mb-3">Status: <strong>{{ overlay.status }}</strong></p>
+
+        <h5>Switches</h5>
+        <ul>
+            {% for switch in overlay.switches %}
+                <li>{{ switch.name }} (DPID: {{ switch.dpid }})</li>
+            {% endfor %}
+        </ul>
+
+        <h5 class="text-lg mt-4">Topology</h5>
+        <div id="topology" class="border rounded p-3" style="height: 500px;"></div>
+
+        <!-- Pass topology as JS-safe JSON -->
+      {{ topology_json|json_script:"topology-data" }}
+
+
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://d3js.org/d3.v7.min.js"></script>
+
+<script>
+    const data = JSON.parse(document.getElementById('topology-data').textContent);
+    console.log("TOPOLOGY DATA:", data);
+
+    const links = data.links || [];
+    const hosts = data.hosts || [];
+
+    const width = 800;
+    const height = 500;
+
+    const svg = d3.select("#topology")
+        .append("svg")
+        .attr("width", width)
+        .attr("height", height);
+
+    // Convert to force simulation format
+    const nodes = [];
+    const nodeMap = new Map();
+
+    // Add switches to the nodes list
+    links.forEach(link => {
+       [link.src, link.dst].forEach(d => {
+            if (!nodeMap.has(d)) {
+                nodeMap.set(d, { id: d, type: 'switch' });
+                nodes.push(nodeMap.get(d));
+            }
+        });
+    });
+
+    // Add hosts to the nodes list
+    hosts.forEach(h => {
+        const id = h.id || h.mac || h.ip;
+        if (!nodeMap.has(id)) {
+            nodeMap.set(id, { id: id, type: 'host' });
+            nodes.push(nodeMap.get(id));
+        }
+    });
+
+    // Create the simulation
+    const simulation = d3.forceSimulation(nodes)
+    const linkData = links.map(l => ({
+        source: nodeMap.get(l.src),
+        target: nodeMap.get(l.dst),
+        bandwidth: l.bandwidth
+    }));
+
+    simulation.force("link", d3.forceLink(linkData)
+        .id(d => d.id)
+        .distance(150))
+
+        .force("charge", d3.forceManyBody().strength(-400))
+        .force("center", d3.forceCenter(width / 2, height / 2));
+
+    // Draw the links (lines)
+    const link = svg.append("g")
+        .selectAll("line")
+        .data(linkData)
+        .enter().append("line")
+        .attr("stroke", "#999")
+        .attr("stroke-width", 2);
+        // Draw the nodes (circles)
+    const node = svg.append("g")
+        .selectAll("circle")
+        .data(nodes)
+        .enter().append("circle")
+        .attr("r", 20)
+        .attr("fill", d => d.type === 'host' ? "#4CAF50" : "#2196F3")
+        .call(drag(simulation));
+
+    // Add labels to the nodes
+    const label = svg.append("g")
+        .selectAll("text")
+        .data(nodes)
+        .enter().append("text")
+        .text(d => d.id)
+        .attr("dy", 4)
+        .attr("x", 25)
+        .style("font-size", "12px");
+
+    // Update positions on every tick of the simulation
+    simulation.on("tick", () => {
+        link
+            .attr("x1", d => d.source.x)
+            .attr("y1", d => d.source.y)
+            .attr("x2", d => d.target.x)
+            .attr("y2", d => d.target.y);
+
+        node
+            .attr("cx", d => d.x)
+            .attr("cy", d => d.y);
+
+        label
+            .attr("x", d => d.x)
+            .attr("y", d => d.y);
+    });
+
+    // Define drag behavior for nodes
+    function drag(simulation) {
+        return d3.drag()
+            .on("start", (event, d) => {
+                if (!event.active) simulation.alphaTarget(0.3).restart();
+                d.fx = d.x;
+                d.fy = d.y;
+            })
+            .on("drag", (event, d) => {
+                d.fx = event.x;
+                d.fy = event.y;
+            })
+            .on("end", (event, d) => {
+                if (!event.active) simulation.alphaTarget(0);
+                d.fx = null;
+                d.fy = null;
+            });
+    }
+</script>
+{% endblock %}

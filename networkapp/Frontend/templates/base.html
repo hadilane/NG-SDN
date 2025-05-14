@@ -6,6 +6,9 @@
     <title>{% block title %}NG-SDN App{% endblock %}</title>
 
     <!-- CSS links -->
+     <!-- Font Awesome (Free CDN version) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
     <link rel="stylesheet" href="{% static 'assets/plugins/bootstrap/css/bootstrap.min.css' %}">
     <link rel="stylesheet" href="{% static 'assets/css/main.css' %}">
     <link rel="stylesheet" href="{% static 'assets/css/theme1.css' %}">
@@ -40,5 +43,8 @@
 
 
 <script src="{% static 'assets/js/page/project-index.js'%}"></script>
+
+<!-- ADD THIS -->
+{% block scripts %}{% endblock %}
 </body>
 </html>
