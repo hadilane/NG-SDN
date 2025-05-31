@@ -6,12 +6,37 @@
     <title>{% block title %}NG-SDN App{% endblock %}</title>
 
     <!-- CSS links -->
-     <!-- Font Awesome (Free CDN version) -->
+    <!-- Font Awesome (Free CDN version) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
 
     <link rel="stylesheet" href="{% static 'assets/plugins/bootstrap/css/bootstrap.min.css' %}">
     <link rel="stylesheet" href="{% static 'assets/css/main.css' %}">
     <link rel="stylesheet" href="{% static 'assets/css/theme1.css' %}">
+
+    <style>
+        .badge {
+            padding: 0.3em 0.4em; /* Larger padding for bigger background */
+            font-size: 0.9rem; /* Slightly larger text */
+            line-height: 1.5; /* Better text alignment */
+            border-radius: 0.25rem; /* Consistent rounding */
+        }
+        .badge-warning {
+            color: #333; /* Darker text for readability on yellow */
+            background-color: #ffc107; /* Bootstrap warning yellow */
+        }
+        .badge-success {
+            color: #fff; /* White text on green */
+            background-color: #28a745; /* Bootstrap success green */
+        }
+        .badge-danger {
+            color: #fff; /* White text on red */
+            background-color: #dc3545; /* Bootstrap danger red */
+        }
+        .badge-secondary {
+            color: #fff; /* White text for default/unknown status */
+            background-color: #6c757d; /* Bootstrap secondary gray */
+        }
+    </style>
 </head>
 <body class="font-montserrat">
 <!-- Page Loader -->
@@ -26,23 +51,18 @@
 
     <div class="page">
         {% block content %}{% endblock %}
+        {% include "partials/footer.html" %}
     </div>
-
-    {% include "partials/footer.html" %}
 </div>
 
 <!-- Scripts -->
 <script src="{% static 'assets/bundles/lib.vendor.bundle.js' %}"></script>
 <script src="{% static 'assets/js/core.js' %}"></script>
-
-
-<script src="{% static 'assets/bundles/apexcharts.bundle.js'%}"></script>
-<script src="{% static 'assets/bundles/counterup.bundle.js'%}"></script>
-<script src="{% static 'assets/bundles/knobjs.bundle.js'%}"></script>
-<script src="{% static 'assets/bundles/c3.bundle.js'%}"></script>
-
-
-<script src="{% static 'assets/js/page/project-index.js'%}"></script>
+<script src="{% static 'assets/bundles/apexcharts.bundle.js' %}"></script>
+<script src="{% static 'assets/bundles/counterup.bundle.js' %}"></script>
+<script src="{% static 'assets/bundles/knobjs.bundle.js' %}"></script>
+<script src="{% static 'assets/bundles/c3.bundle.js' %}"></script>
+<script src="{% static 'assets/js/page/project-index.js' %}"></script>
 
 <!-- ADD THIS -->
 {% block scripts %}{% endblock %}

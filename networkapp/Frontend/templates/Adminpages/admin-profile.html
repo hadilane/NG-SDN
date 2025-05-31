@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Profile - NG-SDN{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-center mt-5">
+    <div class="col-lg-6 col-md-8">
+        <div class="card">
+            <!-- Profile image -->
+            <div class="card-body text-center">
+                <img src="{{ user.photo|default:'https://via.placeholder.com/150' }}" class="rounded-circle mb-3" style="width: 150px; height: 150px;" alt="User profile photo">
+                <h5 class="card-title">{{ user.username }}</h5>
+                <p class="card-text text-muted">{{ user.department|default:"No department" }}</p>
+
+                <div class="row">
+                    
+                    <div class="col-4">
+                        <h6><strong>{{ user.is_active|yesno:"Active,Inactive" }}</strong></h6>
+                        <span>Status</span>
+                    </div>
+                    <div class="col-4">
+                        <h6><strong>{{ user.is_staff|yesno:"Staff,Non-staff" }}</strong></h6>
+                        <span>Role</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Profile info list -->
+            <ul class="list-group list-group-flush">
+                {% if user.first_name %}
+                    <li class="list-group-item"><strong>First Name:</strong> {{ user.first_name }}</li>
+                {% endif %}
+                {% if user.last_name %}
+                    <li class="list-group-item"><strong>Last Name:</strong> {{ user.last_name }}</li>
+                {% endif %}
+                {% if user.email %}
+                    <li class="list-group-item"><strong>Email Address:</strong> {{ user.email }}</li>
+                {% endif %}
+                {% if user.phone %}
+                    <li class="list-group-item"><strong>Phone Number:</strong> {{ user.phone }}</li>
+                {% endif %}
+                {% if user.date_joined %}
+                    <li class="list-group-item"><strong>Joined:</strong> {{ user.date_joined|date:"F j, Y" }}</li>
+                {% endif %}
+            </ul>
+
+            <!-- Buttons -->
+            <div class="card-body text-center">
+                <a href="javascript:void(0);" class="btn btn-secondary btn-sm">Edit Profile</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

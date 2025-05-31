@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% load static %}
+
+{% block title %}Détails de la demande - NG-SDN{% endblock %}
+
+{% block content %}
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{% static 'assets/plugins/bootstrap/css/bootstrap.min.css' %}" />
+    <link rel="stylesheet" href="{% static 'assets/css/main.css' %}"/>
+    <link rel="stylesheet" href="{% static 'assets/css/theme1.css' %}"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+</head>
+<body class="font-montserrat">
+    <div class="container mt-4">
+        <h2>Details of demande: {{ demande.name }}</h2>
+        <div class="card">
+            <div class="card-body">
+                <h4 class="fw-bold">Demande information</h4>
+                <br>
+                <p><strong>Client:</strong> {{ demande.client.first_name }} {{ demande.client.last_name }}</p>
+                <p><strong>Email:</strong> {{ demande.client.email }}</p>
+                <p><strong>Status:</strong> {{ demande.get_status_display }}</p>
+                <p><strong>Created At:</strong> {{ demande.created_at|date:"Y-m-d H:i" }}</p>
+                <hr>
+                <h4 class="fw-bold">Overlay Configuration</h4>
+                <br>
+                <p><strong>Overlay Name</strong> {{ demande.name|default:"No description" }}</p>
+                <p><strong>Description:</strong> {{ demande.description|default:"No description" }}</p>
+                <p><strong>Overlay Type:</strong> {{ demande.configuration.overlay_type|default:"Not specified" }}</p>
+                <p><strong>Tunnel Mode:</strong> {{ demande.configuration.overlay_tunnel_mode|default:"Not specified" }}</p>
+                <p><strong>Status:</strong> {{ demande.configuration.overlay_status|default:"Not specified" }}</p>
+                <h6>Overlay Segments:</h6>
+                <ul>
+                    {% for segment in demande.configuration.overlay_segments %}
+                        <li>Device: {{ segment.device_name }} - LAN Interface: {{ segment.device_LAN_interface }}</li>
+                    {% empty %}
+                        <li>No segments defined</li>
+                    {% endfor %}
+                </ul>
+                {% if demande.status == 'rejetee' and demande.commentaire_admin %}
+                    <p><strong>Rejection Comment:</strong> {{ demande.commentaire_admin }}</p>
+                {% endif %}
+                {% if demande.status == 'en_attente' %}
+                    <div class="mt-3 text-center">
+                        <a href="{% url 'valider_demande' demande.id %}" class="btn btn-success">Validate</a>
+                        <a href="{% url 'rejeter_demande' demande.id %}" class="btn btn-danger">Reject</a>
+                    </div>
+                {% endif %}
+                <div class="mt-3 text-center">
+                    <a href="{% url 'liste_demandes_admin' %}" class="btn btn-secondary">Back to Demands</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="{% static 'assets/bundles/lib.vendor.bundle.js' %}"></script>
+    <script src="{% static 'assets/js/core.js' %}"></script>
+</body>
+</html>
+{% endblock %}

@@ -120,6 +120,8 @@ SESSION_COOKIE_AGE = 1800  # 30 mins
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 
 
+LOGIN_URL = '/login/'
+
 # For sending forget-passwd email
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'

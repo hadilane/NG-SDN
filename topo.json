@@ -1,46 +1,20 @@
 {
-  "name": "My Overlay",
-  "status": "Active",
-  "switches": [
+
+"overlay_name": "Overlay-4",
+"overlay_type": "IPv4Overlay",
+"overlay_status": "Active",
+"overlay_description": "this is an overlay to route the messages trafic",
+"overlay_tunnel_mode": "VXLAN",
+
+"overlay_segments": [ 
     {
-      "dpid": "00:00:00:00:00:01",
-      "name": "s1"
+        "device_name": "ewED4",
+        "device_LAN_interface": "ewED4-eth3"
     },
     {
-      "dpid": "00:00:00:00:00:02",
-      "name": "s2"
-    },
-    {
-      "dpid": "00:00:00:00:00:03",
-      "name": "s3"
+        "device_name": "ewED5",
+        "device_LAN_interface": "ewED5-eth3"
     }
-  ],
-  "topology": {
-    "links": [
-      {
-        "src": "s1",
-        "dst": "s2",
-        "bandwidth": "100Mbps"
-      },
-      {
-        "src": "s2",
-        "dst": "s3",
-        "bandwidth": "200Mbps"
-      }
-    ],
-    "hosts": [
-      {
-        "name": "h1",
-        "ip": "192.168.1.1",
-        "mac": "00:00:00:00:01:01",
-        "connected_switch": "s1"
-      },
-      {
-        "name": "h2",
-        "ip": "192.168.1.2",
-        "mac": "00:00:00:00:02:02",
-        "connected_switch": "s2"
-      }
-    ]
-  }
+] 
+
 }

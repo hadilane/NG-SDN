@@ -2,7 +2,7 @@ from django.urls import path
 from . import views
 from django.contrib.auth import views as auth_views
 from .forms import CustomPasswordResetForm
-from .views import CustomPasswordResetView
+from .views import *
 from django.conf import settings
 
 
@@ -23,8 +23,20 @@ urlpatterns = [
     path('clients/delete/<int:user_id>/', views.delete_client, name='delete_client'),
     path('clients/toggle/<int:user_id>/', views.toggle_client_status, name='toggle_client_status'),
     path('overlays/', views.overlays_list, name='overlays_list'),
-    path('overlays/add/', views.add_overlay, name='add_overlay'),
+    #path('overlays/add/', views.add_overlay, name='add_overlay'),
     path('overlays/<int:overlay_id>/', views.overlay_detail, name='overlay_detail'),
     path('overlays/<int:overlay_id>/delete/', views.delete_overlay, name='delete_overlay'),
-
+    path('profile/', profile_view, name='client_profile'),
+    path('adminprofile/', views.adminprofile_view, name='admin_profile'),
+    path('logout/', views.logout_view, name='logout'),
+    path('clients/<int:client_id>/profile/', views.client_profile_view, name='client_profile'),
+    path('create/demande/', views.create_demande_overlay, name='create_demande_overlay'),
+    path('demandes/', views.liste_demandes_client, name='liste_demandes_client'),
+    path('list/demandes/', views.liste_demandes_admin, name='liste_demandes_admin'),
+    path('list/demandes/<int:demande_id>/', views.demande_detail_client, name='demande_detail_client'),
+    path('list/demandes/<int:demande_id>/', views.demande_detail, name='demande_detail'),
+    path('list/demandes/<int:demande_id>/valider/', views.valider_demande_overlay, name='valider_demande'),
+    path('list/demandes/<int:demande_id>/rejeter/', views.rejeter_demande_overlay, name='rejeter_demande'),
+    path('notifications/read/', views.mark_notifications_read, name='mark_notifications_read'),
+    path('demandes/delete/<int:demande_id>/', views.delete_demande, name='delete_demande'),
 ]

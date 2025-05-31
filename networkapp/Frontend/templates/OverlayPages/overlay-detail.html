@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "home.html" %}
 
 {% block content %}
 <div class="container mt-5">
@@ -6,20 +6,16 @@
         <h2 class="mb-4 text-xl font-semibold text-primary">{{ overlay.name }}</h2>
         <p class="text-muted mb-3">Status: <strong>{{ overlay.status }}</strong></p>
 
-        <h5>Switches</h5>
-        <ul>
-            {% for switch in overlay.switches %}
-                <li>{{ switch.name }} (DPID: {{ switch.dpid }})</li>
-            {% endfor %}
+        <h5 class="text-lg mt-3">Switches</h5>
+        <ul id="switch-list">
+            <!-- Will be dynamically filled by JS -->
         </ul>
 
         <h5 class="text-lg mt-4">Topology</h5>
         <div id="topology" class="border rounded p-3" style="height: 500px;"></div>
 
-        <!-- Pass topology as JS-safe JSON -->
-      {{ topology_json|json_script:"topology-data" }}
-
-
+        <!-- Safe JSON script -->
+        {{ topology_json|json_script:"topology-data" }}
     </div>
 </div>
 {% endblock %}
@@ -33,6 +29,15 @@
 
     const links = data.links || [];
     const hosts = data.hosts || [];
+    const switches = data.switches || [];
+
+    // Populate switch list
+    const switchList = document.getElementById('switch-list');
+    switches.forEach(sw => {
+        const li = document.createElement('li');
+        li.textContent = `${sw.name || sw.id} (DPID: ${sw.dpid || 'N/A'})`;
+        switchList.appendChild(li);
+    });
 
     const width = 800;
     const height = 500;
@@ -42,13 +47,22 @@
         .attr("width", width)
         .attr("height", height);
 
-    // Convert to force simulation format
     const nodes = [];
     const nodeMap = new Map();
 
-    // Add switches to the nodes list
+    // Add switches from config
+    switches.forEach(sw => {
+        const id = sw.name || sw.id || sw.dpid;
+        if (id && !nodeMap.has(id)) {
+            const node = { id: id, type: 'switch' };
+            nodeMap.set(id, node);
+            nodes.push(node);
+        }
+    });
+
+    // Add switches from links if not already added
     links.forEach(link => {
-       [link.src, link.dst].forEach(d => {
+        [link.src, link.dst].forEach(d => {
             if (!nodeMap.has(d)) {
                 nodeMap.set(d, { id: d, type: 'switch' });
                 nodes.push(nodeMap.get(d));
@@ -56,7 +70,7 @@
         });
     });
 
-    // Add hosts to the nodes list
+    // Add hosts
     hosts.forEach(h => {
         const id = h.id || h.mac || h.ip;
         if (!nodeMap.has(id)) {
@@ -65,29 +79,45 @@
         }
     });
 
-    // Create the simulation
-    const simulation = d3.forceSimulation(nodes)
+    // Build link data (switch-switch)
     const linkData = links.map(l => ({
         source: nodeMap.get(l.src),
         target: nodeMap.get(l.dst),
-        bandwidth: l.bandwidth
+        bandwidth: l.bandwidth,
+        type: 'switch-link'
     }));
 
-    simulation.force("link", d3.forceLink(linkData)
-        .id(d => d.id)
-        .distance(150))
+    // Add host-switch links
+    hosts.forEach(h => {
+        const hostId = h.id || h.mac || h.ip;
+        const connectedSwitch = h.connected_switch;
+        if (connectedSwitch && nodeMap.has(hostId) && nodeMap.has(connectedSwitch)) {
+            linkData.push({
+                source: nodeMap.get(hostId),
+                target: nodeMap.get(connectedSwitch),
+                type: 'host-link'
+            });
+        }
+    });
 
+    // Create simulation
+    const simulation = d3.forceSimulation(nodes)
+        .force("link", d3.forceLink(linkData)
+            .id(d => d.id)
+            .distance(150))
         .force("charge", d3.forceManyBody().strength(-400))
         .force("center", d3.forceCenter(width / 2, height / 2));
 
-    // Draw the links (lines)
+    // Draw links
     const link = svg.append("g")
         .selectAll("line")
         .data(linkData)
         .enter().append("line")
-        .attr("stroke", "#999")
+        .attr("stroke", d => d.type === 'host-link' ? "#ccc" : "#999")
+        .attr("stroke-dasharray", d => d.type === 'host-link' ? "4,2" : "none")
         .attr("stroke-width", 2);
-        // Draw the nodes (circles)
+
+    // Draw nodes
     const node = svg.append("g")
         .selectAll("circle")
         .data(nodes)
@@ -96,7 +126,7 @@
         .attr("fill", d => d.type === 'host' ? "#4CAF50" : "#2196F3")
         .call(drag(simulation));
 
-    // Add labels to the nodes
+    // Add labels
     const label = svg.append("g")
         .selectAll("text")
         .data(nodes)
@@ -106,7 +136,7 @@
         .attr("x", 25)
         .style("font-size", "12px");
 
-    // Update positions on every tick of the simulation
+    // Update on tick
     simulation.on("tick", () => {
         link
             .attr("x1", d => d.source.x)
@@ -123,7 +153,7 @@
             .attr("y", d => d.y);
     });
 
-    // Define drag behavior for nodes
+    // Drag behavior
     function drag(simulation) {
         return d3.drag()
             .on("start", (event, d) => {

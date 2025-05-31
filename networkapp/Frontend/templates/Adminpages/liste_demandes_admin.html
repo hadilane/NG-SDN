@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% load static %}
+
+{% block title %}Liste des demandes - NG-SDN{% endblock %}
+
+{% block content %}
+<div class="section-body mt-3">
+    <div class="container-fluid">
+        <div class="row clearfix">
+            <div class="col-12">
+                {% if messages %}
+                <div class="mt-2">
+                    {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                            <span aria-hidden="true">×</span>
+                        </button>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                <div class="card">
+                    <form method="GET" action="{% url 'liste_demandes_admin' %}">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-lg-2 col-md-4 col-sm-6">
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" name="id" placeholder="ID" value="{{ search_query.id }}">
+                                    </div>
+                                </div>
+                                <div class="col-lg-2 col-md-4 col-sm-6">
+                                    <div class="input-group">
+                                        <select name="status" class="form-control">
+                                            <option value="" {% if not search_query.status %}selected{% endif %}>Status</option>
+                                            <option value="en_attente" {% if search_query.status == 'en_attente' %}selected{% endif %}>En attente</option>
+                                            <option value="validee" {% if search_query.status == 'validee' %}selected{% endif %}>Validée</option>
+                                            <option value="rejetee" {% if search_query.status == 'rejetee' %}selected{% endif %}>Rejetée</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-lg-2 col-md-4 col-sm-6">
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" name="name" placeholder="Name or Client" value="{{ search_query.name }}">
+                                    </div>
+                                </div>
+                                <div class="col-lg-2 col-md-4 col-sm-6">
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" name="date" data-provide="datepicker" placeholder="Date" value="{{ search_query.date }}">
+                                    </div>
+                                </div>
+                                <div class="col-lg-2 col-md-4 col-sm-6"></div>
+                                <div class="col-lg-2 col-md-4 col-sm-6">
+                                    <button type="submit" class="btn btn-primary btn-block">Search</button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <div class="col-12">
+                <div class="card">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped table-vcenter mb-0 text-nowrap">
+                            <thead>
+                                <tr>
+                                    <th colspan="5">Demandes list</th>
+                                    <th colspan="1" class="text-end">
+                                        <a href="{% url 'dashboard' %}" class="btn btn-primary btn-sm">
+                                            Back to Dashboard <span class="badge badge-light">{{ notification_count }}</span>
+                                        </a>
+                                    </th>
+                                </tr>
+                                <tr>
+                                    <th class="w30"> </th>
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>Client</th>
+                                    <th>Status</th>
+                                    <th>Created At</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for demande in demandes %}
+                                <tr>
+                                    <td>
+                                        <label class="custom-control custom-checkbox">
+                                            <input type="checkbox" class="custom-control-input" name="example-checkbox1" value="option1">
+                                            <span class="custom-control-label"> </span>
+                                        </label>
+                                    </td>
+                                    <td>{{ demande.id }}</td>
+                                    <td>
+                                        <a href="{% url 'demande_detail' demande.id %}">{{ demande.name }}</a>
+                                    </td>
+                                    <td>{{ demande.client.first_name }} {{ demande.client.last_name }}</td>
+                                    <td> <span class="badge {% if demande.status == 'en_attente' %}badge-warning{% elif demande.status == 'validee' %}badge-success{% elif demande.status == 'rejetee' %}badge-danger{% endif %}">
+                                            {{ demande.get_status_display }}
+                                        </span></td>
+                                    <td>{{ demande.created_at|date:"Y-m-d H:i" }}</td>
+                                    <td>
+                                        <a href="{% url 'demande_detail' demande.id %}" class="btn btn-sm btn-info">Details</a>
+                                        {% if demande.status == 'en_attente' %}
+                                            <a href="{% url 'valider_demande' demande.id %}" class="btn btn-sm btn-success">Validate</a>
+                                            <a href="{% url 'rejeter_demande' demande.id %}" class="btn btn-sm btn-danger">Reject</a>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7">No demands available</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
