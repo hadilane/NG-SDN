@@ -7,38 +7,64 @@
 {% block content %}
 <div class="section-body mt-3">
     <div class="container-fluid">
-        <div class="row clearfix">
+        <!-- Welcome Section -->
+        <div class="row clearfix mb-4">
             <div class="col-12">
-                <h2>Welcome, {{ user.first_name }} {{ user.last_name }}</h2>
-                <div class="dropdown">
-                    <button class="btn btn-primary dropdown-toggle" type="button" data-toggle="dropdown">
-                        Notifications <span class="badge badge-light">{{ notification_count }}</span>
-                    </button>
-                    <div class="dropdown-menu">
-                        {% for notification in notifications %}
-                            <div class="dropdown-item">
-                                {% if notification.demand %}
-                                    <a href="{% url 'demande_detail' notification.demand.id %}">
-                                        {{ notification.message }} ({{ notification.created_at|date:"Y-m-d H:i" }})
-                                    </a>
-                                {% else %}
-                                    {{ notification.message }} ({{ notification.created_at|date:"Y-m-d H:i" }})
-                                {% endif %}
+                <div class="card shadow-sm">
+                    <div class="card-body d-flex justify-content-between align-items-center flex-wrap py-3">
+                        <h2 class="mb-0">Welcome, {{ user.first_name }} {{ user.last_name }}</h2>
+                        <div class="d-flex align-items-center">
+                            <div class="d-flex mr-3">
+                                <a href="{% url 'liste_demandes_admin' %}" class="btn btn-info mr-2">View All Demands</a>
+                                <a href="{% url 'clients' %}" class="btn btn-secondary">Manage Clients</a>
                             </div>
-                        {% empty %}
-                            <div class="dropdown-item">No new notifications</div>
-                        {% endfor %}
-                        {% if notifications %}
-                            <a class="dropdown-item" href="{% url 'mark_notifications_read' %}">Mark all as read</a>
-                        {% endif %}
+                            <div class="dropdown">
+                                <button class="btn btn-primary dropdown-toggle" type="button" data-toggle="dropdown">
+                                    Notifications <span class="small-badge badge-light">{{ notification_count }}</span>
+                                </button>
+                                <div class="dropdown-menu">
+                                    {% for notification in notifications %}
+                                        <div class="dropdown-item">
+                                            {% if notification.demand %}
+                                                <a href="{% url 'demande_detail' notification.demand.id %}">
+                                                    {{ notification.message }} ({{ notification.created_at|date:"Y-m-d H:i" }})
+                                                </a>
+                                            {% else %}
+                                                {{ notification.message }} ({{ notification.created_at|date:"Y-m-d H:i" }})
+                                            {% endif %}
+                                        </div>
+                                    {% empty %}
+                                        <div class="dropdown-item">No new notifications</div>
+                                    {% endfor %}
+                                    {% if notifications %}
+                                        <a class="dropdown-item" href="{% url 'mark_notifications_read' %}">Mark all as read</a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                </div>
-                <div class="mt-4">
-                    <a href="{% url 'liste_demandes_admin' %}" class="btn btn-info">View All Demands</a>
-                    <a href="{% url 'clients' %}" class="btn btn-secondary">Manage Clients</a>
                 </div>
             </div>
         </div>
+
+        <!-- Monitoring Network Section -->
+        <div class="row clearfix mb-4">
+            <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-header">
+                        <h3 class="card-title">Monitoring Network</h3>
+                    </div>
+                    <div class="card-body">
+                        <a href="http://192.168.214.133:3000" target="_blank" class="btn btn-primary mr-2">
+                            Link to Grafana
+                        </a>
+                        <button class="btn btn-secondary" disabled>Telemetry Reports</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Network Topology Section -->
         <div class="row clearfix mt-4">
             <div class="col-12">
                 <div class="card">
@@ -48,6 +74,70 @@
                     <div class="card-body">
                         <div id="topology-error" class="alert alert-danger" style="display: none;"></div>
                         <div id="network-topology" style="height: 800px; border: 1px solid #ddd;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Topology Legend and Details -->
+        <div class="row clearfix mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Topology Legend and Details</h3>
+                    </div>
+                    <div class="card-body">
+                        {% if skipped_overlays > 0 %}
+                            <div class="alert alert-warning">
+                                {{ skipped_overlays }} overlay(s) could not be displayed due to missing user information. Please check the database for overlays with no associated user.
+                            </div>
+                        {% endif %}
+                        <h5>Topology Explanation</h5>
+                        <p>
+                            The network topology visualizes the SDN infrastructure:
+                            <ul>
+                                <li><strong>Nodes</strong>: Represent switches (e.g., device:r1). Green nodes are online; red nodes are offline.</li>
+                                <li><strong>Underlay Links</strong>: Black lines represent physical connections between switches, labeled with port numbers (e.g., 1 ↔ 2).</li>
+                                <li><strong>Overlay Paths</strong>: Colored, dashed, thicker lines represent virtual connections between devices, labeled with the overlay name on the first segment. Hover to see details (e.g., source/destination interfaces).</li>
+                            </ul>
+                        </p>
+                        <h5>Overlay Legend</h5>
+                        {% if overlay_info %}
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Color</th>
+                                            <th>Overlay Name</th>
+                                            {% if user.role == 'admin' %}
+                                                <th>User</th>
+                                            {% endif %}
+                                            <th>Source</th>
+                                            <th>Destination</th>
+                                            <th>Underlay Path</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for overlay in overlay_info %}
+                                            <tr>
+                                                <td>
+                                                    <span style="display: inline-block; width: 20px; height: 20px; background-color: {{ overlay.color }}; border: 1px solid #000;"></span>
+                                                </td>
+                                                <td>{{ overlay.name }}</td>
+                                                {% if user.role == 'admin' %}
+                                                    <td>{{ overlay.user_email }}</td>
+                                                {% endif %}
+                                                <td>{{ overlay.src_device }} ({{ overlay.src_interface }})</td>
+                                                <td>{{ overlay.dst_device }} ({{ overlay.dst_interface }})</td>
+                                                <td>{{ overlay.path }}</td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <p>No active overlays found.</p>
+                        {% endif %}
                     </div>
                 </div>
             </div>

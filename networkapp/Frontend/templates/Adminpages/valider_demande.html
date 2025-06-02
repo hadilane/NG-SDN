@@ -1,4 +1,4 @@
-{% extends "home.html" %}
+{% extends "base.html" %}
 
 {% load static %}
 
@@ -20,12 +20,32 @@
         <h2>Valider la demande: {{ demande.name }}</h2>
         <div class="card">
             <div class="card-body">
-                <p>Are you sure you want to validate the overlay demand "{{ demande.name }}" from {{ demande.client.first_name }} {{ demande.client.last_name }}?</p>
-                <form method="post">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-success">Confirm Validation</button>
-                    <a href="{% url 'demande_detail' demande.id %}" class="btn btn-secondary">Cancel</a>
-                </form>
+                <p>Confirm validation of overlay demand "{{ demande.name }}" from {{ demande.client.first_name }} {{ demande.client.last_name }}.</p>
+                {% if error_message %}
+                    <div class="alert alert-danger">{{ error_message }}</div>
+                {% endif %}
+                <h5>Underlay Path</h5>
+                {% if underlay_path %}
+                    <p>Computed path: {{ underlay_path|join:" → " }}</p>
+                {% else %}
+                    <p class="text-danger">No valid path found. Check ONOS connectivity or configuration.</p>
+                {% endif %}
+                {% if underlay_path %}
+                    <h5>Upload Configuration Scripts</h5>
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        {% for switch in underlay_path %}
+                            <div class="form-group">
+                                <label for="script_{{ switch }}">Python Script for {{ switch }}</label>
+                                <input type="file" class="form-control-file" id="script_{{ switch }}" name="script_{{ switch }}" accept=".py" required>
+                            </div>
+                        {% endfor %}
+                        <button type="submit" class="btn btn-success">Confirm Validation</button>
+                        <a href="{% url 'demande_detail' demande.id %}" class="btn btn-secondary">Cancel</a>
+                    </form>
+                {% else %}
+                    <a href="{% url 'demande_detail' demande.id %}" class="btn btn-secondary">Back</a>
+                {% endif %}
             </div>
         </div>
     </div>

@@ -66,6 +66,10 @@ from django.urls import reverse_lazy
 from requests.auth import HTTPBasicAuth
 from heapq import heappush, heappop
 from .models import Notification, DemandeOverlay, Overlay, CustomUser, UnderlayNetwork
+import paramiko
+import os
+from django.core.files.storage import FileSystemStorage
+
 
 
 logger = logging.getLogger(__name__)  # for auditing
@@ -101,13 +105,51 @@ def view_topology(request):
 @login_required
 @role_required('admin')
 def dashboard(request):
-   
-    demandes = DemandeOverlay.objects.all()[:5]   
+    demandes = DemandeOverlay.objects.all()[:5]
+    
+    
+    # Fetch overlays and their underlay paths
+    overlay_colors = ["#FF5733", "#33FF57", "#3357FF", "#FF33A1", "#A133FF"]
+    if request.user.role == 'admin':
+        overlays = Overlay.objects.filter(status="Active").select_related('user')
+    else:
+        overlays = Overlay.objects.filter(user=request.user, status="Active")
+    
+    overlay_info = []
+    skipped_overlays = 0  # Track skipped overlays
+    for idx, overlay in enumerate(overlays):
+        if not overlay.user:
+            logger.warning("Overlay %s (ID: %d) has no associated user", overlay.name, overlay.id)
+            skipped_overlays += 1
+            continue  # Skip overlays with no user
+        underlay = UnderlayNetwork.objects.filter(overlay=overlay).first()
+        path = underlay.switches if underlay else []
+        config = overlay.configuration or []
+        src_device = config[0].get("device_name") if isinstance(config, list) and len(config) > 0 else "N/A"
+        src_interface = config[0].get("device_LAN_interface") if isinstance(config, list) and len(config) > 0 else "N/A"
+        dst_device = config[1].get("device_name") if isinstance(config, list) and len(config) > 1 else "N/A"
+        dst_interface = config[1].get("device_LAN_interface") if isinstance(config, list) and len(config) > 1 else "N/A"
+        
+        overlay_info.append({
+            'name': overlay.name,
+            'color': overlay_colors[idx % len(overlay_colors)],
+            'user_email': overlay.user.email,
+            'src_device': src_device,
+            'src_interface': src_interface,
+            'dst_device': dst_device,
+            'dst_interface': dst_interface,
+            'path': " → ".join(path) if path else "No path",
+        })
+
     context = {
         'demandes': demandes,
         'user': request.user,
+        'overlay_info': overlay_info,
+        'skipped_overlays': skipped_overlays,  # Add to context
+        'page_title': 'Admin Dashboard',
     }
     return render(request, 'Adminpages/dashboard.html', context)
+
 
 def dijkstra(graph, start, end):
     """Find shortest path using Dijkstra's algorithm."""
@@ -547,22 +589,60 @@ def overlays_list(request):
 @login_required
 def overlay_detail(request, overlay_id):
     overlay = get_object_or_404(Overlay, id=overlay_id)
+    # Access control: Admins see all, clients see only their overlays
     if not request.user.is_admin() and overlay.user != request.user:
+        messages.error(request, "You do not have permission to view this overlay.")
         return redirect('overlays_list')
-    if isinstance(overlay.configuration, str):
+
+    # Prepare topology data for client view (overlay only)
+    config = overlay.configuration
+    if isinstance(config, str):
         try:
-            config_data = json.loads(overlay.configuration)
+            config = json.loads(config)
         except json.JSONDecodeError as e:
-            print("JSON Error:", e)
-            config_data = {}
-    else:
-        config_data = overlay.configuration
+            logger.error("JSON decode error for overlay %s: %s", overlay.id, str(e))
+            config = []
+
+    # Extract source and destination devices from configuration
+    topology_data = {
+        "nodes": [],
+        "links": []
+    }
+
+    if isinstance(config, list) and len(config) >= 2:
+        src_device = config[0].get("device_name")
+        src_interface = config[0].get("device_LAN_interface", "N/A")
+        dst_device = config[1].get("device_name")
+        dst_interface = config[1].get("device_LAN_interface", "N/A")
+
+        if src_device and dst_device:
+            # Add source and destination nodes
+            topology_data["nodes"].append({
+                "id": src_device,
+                "name": src_device,
+                "type": "device",
+                "interface": src_interface
+            })
+            topology_data["nodes"].append({
+                "id": dst_device,
+                "name": dst_device,
+                "type": "device",
+                "interface": dst_interface
+            })
+            # Add logical link between source and destination
+            topology_data["links"].append({
+                "src": src_device,
+                "dst": dst_device,
+                "type": "overlay"
+            })
+        else:
+            logger.warning("Invalid configuration for overlay %s: src=%s, dst=%s", overlay.id, src_device, dst_device)
+
     return render(request, 'OverlayPages/overlay-detail.html', {
         'overlay': overlay,
-        'topology_json': config_data,
-        'page_title': 'Overlay Detail'
+        'topology_json': topology_data,
+        'page_title': f"Overlay Detail: {overlay.name}"
     })
-
 
 
 
@@ -809,6 +889,74 @@ def demande_detail_client(request, demande_id):
 @role_required('admin')
 def valider_demande_overlay(request, demande_id):
     demande = get_object_or_404(DemandeOverlay, id=demande_id)
+    
+    # Validate client exists
+    if not demande.client:
+        logger.error("DemandeOverlay %s has no client", demande.id)
+        messages.error(request, "Cannot validate: No client associated with this demand.")
+        return redirect('liste_demandes_admin')
+
+    # Fetch ONOS links for path computation
+    try:
+        links_response = requests.get(
+            f"{ONOS_URL}/links",
+            auth=ONOS_AUTH,
+            timeout=REQUEST_TIMEOUT
+        )
+        links_response.raise_for_status()
+        links = links_response.json().get("links", [])
+        logger.debug("Fetched %d links for path computation", len(links))
+    except requests.RequestException as e:
+        logger.error("Failed to fetch ONOS links: %s", str(e))
+        return render(request, 'Adminpages/valider_demande.html', {
+            'demande': demande,
+            'error_message': "Failed to fetch ONOS links. Check ONOS connectivity.",
+            'page_title': f"Valider Demande: {demande.name}"
+        })
+
+    # Build graph for shortest path
+    graph = {}
+    for link in links:
+        src = link.get("src", {}).get("device")
+        dst = link.get("dst", {}).get("device")
+        if src and dst:
+            if src not in graph:
+                graph[src] = []
+            if dst not in graph:
+                graph[dst] = []
+            graph[src].append(dst)
+            graph[dst].append(src)  # Undirected
+
+    # Extract source and destination from configuration
+    config = demande.configuration.get('overlay_segments', [])
+    if not (isinstance(config, list) and len(config) >= 2):
+        logger.warning("Invalid overlay_segments for demande %s: %s", demande.name, config)
+        return render(request, 'Adminpages/valider_demande.html', {
+            'demande': demande,
+            'error_message': "Invalid overlay configuration.",
+            'page_title': f"Valider Demande: {demande.name}"
+        })
+
+    src_device = config[0].get("device_name")
+    dst_device = config[1].get("device_name")
+    if not (src_device and dst_device):
+        logger.warning("Invalid src=%s or dst=%s for demande %s", src_device, dst_device, demande.name)
+        return render(request, 'Adminpages/valider_demande.html', {
+            'demande': demande,
+            'error_message': "Invalid source or destination device.",
+            'page_title': f"Valider Demande: {demande.name}"
+        })
+
+    # Compute shortest path
+    path = dijkstra(graph, src_device, dst_device)
+    if not path:
+        logger.warning("No path found for demande %s between %s and %s", demande.name, src_device, dst_device)
+        return render(request, 'Adminpages/valider_demande.html', {
+            'demande': demande,
+            'error_message': "No valid path found between source and destination.",
+            'page_title': f"Valider Demande: {demande.name}"
+        })
+
     if request.method == 'POST':
         # Update demande status
         demande.status = 'validee'
@@ -826,53 +974,87 @@ def valider_demande_overlay(request, demande_id):
             configuration=demande.configuration.get('overlay_segments', {})
         )
 
-        # Fetch ONOS links for path computation
+        # Handle script uploads
+        fs = FileSystemStorage(location=os.path.join(settings.MEDIA_ROOT, 'scripts'))  # Changed to media/scripts
+        config_scripts = {}
+        for switch in path:
+            script_key = f'script_{switch}'
+            if script_key not in request.FILES:
+                logger.error("Missing script for switch %s in demande %s", switch, demande.name)
+                overlay.delete()  # Roll back overlay creation
+                demande.status = 'en_attente'
+                demande.save()
+                return render(request, 'Adminpages/valider_demande.html', {
+                    'demande': demande,
+                    'underlay_path': path,
+                    'error_message': f"Missing script for switch {switch}.",
+                    'page_title': f"Valider Demande: {demande.name}"
+                })
+            script_file = request.FILES[script_key]
+            if not script_file.name.endswith('.py'):
+                logger.error("Invalid file type for switch %s: %s", switch, script_file.name)
+                overlay.delete()
+                demande.status = 'en_attente'
+                demande.save()
+                return render(request, 'Adminpages/valider_demande.html', {
+                    'demande': demande,
+                    'underlay_path': path,
+                    'error_message': f"File for {switch} must be a .py file.",
+                    'page_title': f"Valider Demande: {demande.name}"
+                })
+            filename = f"overlay_{overlay.id}_{switch.replace(':', '_')}.py"
+            saved_path = fs.save(filename, script_file)
+            config_scripts[switch] = os.path.join('scripts', saved_path)  # Store relative path
+
+        # Execute scripts on VM
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         try:
-            links_response = requests.get(
-                f"{ONOS_URL}/links",
-                auth=ONOS_AUTH,
-                timeout=REQUEST_TIMEOUT
-            )
-            links_response.raise_for_status()
-            links = links_response.json().get("links", [])
-            logger.debug("Fetched %d links for path computation", len(links))
-        except requests.RequestException as e:
-            logger.error("Failed to fetch ONOS links: %s", str(e))
-            links = []
+            ssh.connect('192.168.214.133', username='admin', password='admin', timeout=10)
+            for switch, script_path in config_scripts.items():
+                # Copy script to VM
+                with ssh.open_sftp() as sftp:
+                    local_path = os.path.join(settings.MEDIA_ROOT, script_path)
+                    remote_path = f"/tmp/{os.path.basename(script_path)}"
+                    sftp.put(local_path, remote_path)
+                # Execute script
+                cmd = f"python3 {remote_path}"
+                stdin, stdout, stderr = ssh.exec_command(cmd)
+                exit_status = stdout.channel.recv_exit_status()
+                output = stdout.read().decode()
+                error = stderr.read().decode()
+                if exit_status != 0:
+                    logger.error("Script execution failed for %s: %s", switch, error)
+                    overlay.delete()
+                    demande.status = 'en_attente'
+                    demande.save()
+                    return render(request, 'Adminpages/valider_demande.html', {
+                        'demande': demande,
+                        'underlay_path': path,
+                        'error_message': f"Script execution failed for {switch}: {error}",
+                        'page_title': f"Valider Demande: {demande.name}"
+                    })
+                logger.info("Script executed for %s: %s", switch, output)
+        except Exception as e:
+            logger.error("SSH execution failed: %s", str(e))
+            overlay.delete()
+            demande.status = 'en_attente'
+            demande.save()
+            return render(request, 'Adminpages/valider_demande.html', {
+                'demande': demande,
+                'underlay_path': path,
+                'error_message': f"Failed to execute scripts: {str(e)}",
+                'page_title': f"Valider Demande: {demande.name}"
+            })
+        finally:
+            ssh.close()
 
-        # Build graph for shortest path
-        graph = {}
-        for link in links:
-            src = link.get("src", {}).get("device")
-            dst = link.get("dst", {}).get("device")
-            if src and dst:
-                if src not in graph:
-                    graph[src] = []
-                if dst not in graph:
-                    graph[dst] = []
-                graph[src].append(dst)
-                graph[dst].append(src)  # Undirected
-
-        # Extract source and destination from configuration
-        config = demande.configuration.get('overlay_segments', [])
-        if isinstance(config, list) and len(config) >= 2:
-            src_device = config[0].get("device_name")
-            dst_device = config[1].get("device_name")
-            if src_device and dst_device:
-                # Compute shortest path
-                path = dijkstra(graph, src_device, dst_device)
-                if path:
-                    logger.debug("Computed path for overlay %s: %s", overlay.name, path)
-                    UnderlayNetwork.objects.create(
-                        overlay=overlay,
-                        switches=path
-                    )
-                else:
-                    logger.warning("No path found for overlay %s between %s and %s", overlay.name, src_device, dst_device)
-            else:
-                logger.warning("Invalid src=%s or dst=%s for overlay %s", src_device, dst_device, overlay.name)
-        else:
-            logger.warning("Invalid overlay_segments for overlay %s: %s", overlay.name, config)
+        # Save underlay network with scripts
+        UnderlayNetwork.objects.create(
+            overlay=overlay,
+            switches=path,
+            config_scripts=config_scripts
+        )
 
         # Update notifications and send email
         Notification.objects.filter(demand=demande).update(is_read=True)
@@ -882,13 +1064,14 @@ def valider_demande_overlay(request, demande_id):
             settings.DEFAULT_FROM_EMAIL,
             [demande.client.email]
         )
-        messages.success(request, "Demande validated and overlay created.")
+        messages.success(request, "Demande validated, scripts executed, and overlay created.")
         return redirect('liste_demandes_admin')
+    
     return render(request, 'Adminpages/valider_demande.html', {
         'demande': demande,
+        'underlay_path': path,
         'page_title': f"Valider Demande: {demande.name}"
     })
-
 
 @login_required
 @role_required('admin')

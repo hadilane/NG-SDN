@@ -38,6 +38,7 @@ class Overlay(models.Model):
 class UnderlayNetwork(models.Model):
     overlay = models.ForeignKey(Overlay, on_delete=models.CASCADE, related_name='underlay_networks')
     switches = models.JSONField(default=list)  # e.g., ["device:r1", "device:r7", "device:r2"]
+    config_scripts = models.JSONField(default=dict)  # e.g., {"device:r1": "path/to/script1.py", "device:r7": "path/to/script2.py"}
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
