@@ -32,6 +32,16 @@ class Overlay(models.Model):
     description = models.TextField(default="No description")  # 👈 Add default here
     configuration = models.JSONField(default=dict)  # 👈 default empty dict
     created_at = models.DateTimeField(auto_now_add=True)
+    def __str__(self):
+        return self.name
+
+class UnderlayNetwork(models.Model):
+    overlay = models.ForeignKey(Overlay, on_delete=models.CASCADE, related_name='underlay_networks')
+    switches = models.JSONField(default=list)  # e.g., ["device:r1", "device:r7", "device:r2"]
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Underlay for {self.overlay.name}"
 
 class DemandeOverlay(models.Model):
     STATUS_CHOICES = [

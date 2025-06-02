@@ -1,14 +1,13 @@
 {
 
-"overlay_name": "Overlay-5",
+"overlay_name": "Overlay-test2",
 "overlay_type": "IPv4Overlay",
-"overlay_status": "Inactive",
-"overlay_description": "this is an overlay to route the photos trafic",
+"overlay_status": "Active",
+"overlay_description": "this is an overlay to route the messages trafic",
 "overlay_tunnel_mode": "VXLAN",
 
 "overlay_segments": [
  {"device_name": "device:r1", "device_LAN_interface": "r1-eth3"},
- {"device_name": "device:r4", "device_LAN_interface": "r4-eth3"}, 
  {"device_name": "device:r5", "device_LAN_interface": "r5-eth3"}]
 
 }

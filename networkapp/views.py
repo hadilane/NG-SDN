@@ -64,9 +64,18 @@ import logging
 from django.views.generic import FormView
 from django.urls import reverse_lazy
 from requests.auth import HTTPBasicAuth
+from heapq import heappush, heappop
+from .models import Notification, DemandeOverlay, Overlay, CustomUser, UnderlayNetwork
 
 
 logger = logging.getLogger(__name__)  # for auditing
+
+
+
+ONOS_URL = "http://192.168.214.133:8181/onos/v1"  # ONOS IP
+ONOS_AUTH = HTTPBasicAuth("onos", "rocks")
+REQUEST_TIMEOUT = 10  # seconds
+
 
 # Create your views here.
 
@@ -87,15 +96,7 @@ def view_topology(request):
     })
 
 
-ONOS_URL = "http://192.168.214.133:8181/onos/v1"  # ONOS IP
-ONOS_AUTH = HTTPBasicAuth("onos", "rocks")
-REQUEST_TIMEOUT = 10  # seconds
-# Map Overlay device_name to ONOS device IDs (update as needed)
-DEVICE_NAME_MAPPING = {
-    "ewED4": "device:r1",
-    "ewED5": "device:r2",
-    # Add mappings for other devices, e.g., "ewED6": "device:r3"
-}
+
 
 @login_required
 @role_required('admin')
@@ -108,9 +109,25 @@ def dashboard(request):
     }
     return render(request, 'Adminpages/dashboard.html', context)
 
+def dijkstra(graph, start, end):
+    """Find shortest path using Dijkstra's algorithm."""
+    queue = [(0, start, [start])]
+    visited = set()
+    while queue:
+        (cost, node, path) = heappop(queue)
+        if node in visited:
+            continue
+        visited.add(node)
+        if node == end:
+            return path
+        for neighbor in graph.get(node, []):
+            if neighbor not in visited:
+                heappush(queue, (cost + 1, neighbor, path + [neighbor]))
+    return []
+
 def get_onos_topology(request):
     try:
-        # Fetch devices (switches)
+        # Fetch devices
         logger.debug("Fetching devices from %s/devices", ONOS_URL)
         devices_response = requests.get(
             f"{ONOS_URL}/devices",
@@ -146,12 +163,9 @@ def get_onos_topology(request):
             available = device.get("available", False)
             annotations = device.get("annotations", {})
             management_address = annotations.get("managementAddress", "N/A")
-            if management_address.startswith("grpc://"):
-                ip_address = "N/A"
-            else:
-                ip_address = management_address
+            ip_address = "N/A" if management_address.startswith("grpc://") else management_address
             
-            # Fetch device ports
+            # Fetch ports
             logger.debug("Fetching ports for device %s", device_id)
             try:
                 ports_response = requests.get(
@@ -161,7 +175,7 @@ def get_onos_topology(request):
                 )
                 ports_response.raise_for_status()
                 ports = [p["port"] for p in ports_response.json().get("ports", []) if p.get("isEnabled")]
-                ports_str = ", ".join(ports) if ports else "None"
+                ports_str = ", ".join(ports) if ports else ""
             except requests.RequestException as e:
                 logger.error("Failed to fetch ports for %s: %s", device_id, str(e))
                 ports_str = "Error"
@@ -173,10 +187,23 @@ def get_onos_topology(request):
                 "group": "switch",
                 "image": "/static/assets/images/switch-icon.png",
                 "shape": "image",
-                "color": "#28a745" if available else "#dc3545",  # Green for online, red for offline
+                "color": "#28a745" if available else "#dc3545",
             })
 
-        # Process links (underlay) and aggregate bidirectional links
+        # Build graph for shortest path
+        graph = {}
+        for link in links:
+            src = link.get("src", {}).get("device")
+            dst = link.get("dst", {}).get("device")
+            if src and dst:
+                if src not in graph:
+                    graph[src] = []
+                if dst not in graph:
+                    graph[dst] = []
+                graph[src].append(dst)
+                graph[dst].append(src)  # Undirected
+
+        # Process underlay links
         edges = []
         seen_links = set()
         for link in links:
@@ -184,31 +211,24 @@ def get_onos_topology(request):
             dst = link.get("dst", {}).get("device")
             src_port = link.get("src", {}).get("port", "")
             dst_port = link.get("dst", {}).get("port", "")
-            # Extract numeric port (e.g., "[r7-eth2](2)" → "2")
             src_port_num = re.search(r'\((\d+)\)', src_port)
             src_port_num = src_port_num.group(1) if src_port_num else src_port
-            dst_port_num = dst_port  # Destination ports are already numeric
+            dst_port_num = dst_port
 
             if not (src and dst and src_port_num and dst_port_num):
                 logger.warning("Invalid link data: %s", link)
                 continue
-
-            # Create a canonical link key to deduplicate bidirectional links
             link_key = tuple(sorted([src, dst]))
             if link_key not in seen_links:
                 seen_links.add(link_key)
-                # Check for reverse link to combine ports
                 reverse_link = next(
-                    (l for l in links
-                     if l.get("src", {}).get("device") == dst and l.get("dst", {}).get("device") == src),
+                    (l for l in links if l.get("src", {}).get("device") == dst and l.get("dst", {}).get("device") == src),
                     None
                 )
                 if reverse_link:
                     rev_src_port = reverse_link.get("src", {}).get("port", "")
-                    rev_dst_port = reverse_link.get("dst", {}).get("port", "")
                     rev_src_port_num = re.search(r'\((\d+)\)', rev_src_port)
                     rev_src_port_num = rev_src_port_num.group(1) if rev_src_port_num else rev_src_port
-                    rev_dst_port_num = rev_dst_port
                     label = f"{src_port_num} ↔ {rev_src_port_num}"
                 else:
                     label = f"{src_port_num} → {dst_port_num}"
@@ -221,37 +241,61 @@ def get_onos_topology(request):
                     "group": "underlay",
                 })
 
-        # Fetch overlays from database
+        # Process overlays and underlay paths
         logger.debug("Fetching overlays for user %s", request.user)
-        overlays = Overlay.objects.filter(user=request.user, status="Active")
+        if request.user.role == 'admin':
+            overlays = Overlay.objects.filter(status="Active")
+        else:
+            overlays = Overlay.objects.filter(user=request.user, status="Active")
         logger.debug("Found %d overlays", overlays.count())
 
-        # Process overlays
         overlay_colors = ["#FF5733", "#33FF57", "#3357FF", "#FF33A1", "#A133FF"]
+        overlay_edge_ids = []
         for idx, overlay in enumerate(overlays):
             config = overlay.configuration or []
             if not isinstance(config, list) or len(config) < 2:
                 logger.debug("Skipping overlay %s: invalid configuration %s", overlay.name, config)
                 continue
-            # Extract src and dst with mapping
-            src_device = DEVICE_NAME_MAPPING.get(config[0].get("device_name"), config[0].get("device_name"))
+
+            src_device = config[0].get("device_name")
             src_interface = config[0].get("device_LAN_interface")
-            dst_device = DEVICE_NAME_MAPPING.get(config[1].get("device_name"), config[1].get("device_name"))
+            dst_device = config[1].get("device_name")
             dst_interface = config[1].get("device_LAN_interface")
-            if (src_device and dst_device and src_interface and dst_interface and
-                src_device in [n["id"] for n in nodes] and dst_device in [n["id"] for n in nodes]):
+
+            if not (src_device and dst_device and src_interface and dst_interface):
+                logger.debug("Skipping overlay %s: invalid src=%s or dst=%s or interfaces",
+                             overlay.name, src_device, dst_device)
+                continue
+
+            # Use stored path from UnderlayNetwork if available
+            underlay = UnderlayNetwork.objects.filter(overlay=overlay).first()
+            path = underlay.switches if underlay and underlay.switches else dijkstra(graph, src_device, dst_device)
+            
+            if not path:
+                logger.debug("No path found for overlay %s between %s and %s", overlay.name, src_device, dst_device)
+                continue
+
+            # Store or update path in UnderlayNetwork
+            UnderlayNetwork.objects.update_or_create(
+                overlay=overlay,
+                defaults={'switches': path}
+            )
+
+            # Add overlay path edges
+            for i in range(len(path) - 1):
+                edge_id = f"overlay_{overlay.id}_{path[i]}_{path[i+1]}"
+                overlay_edge_ids.append(edge_id)
                 edges.append({
-                    "from": src_device,
-                    "to": dst_device,
-                    "label": overlay.name,
+                    "id": edge_id,
+                    "from": path[i],
+                    "to": path[i+1],
+                    "label": overlay.name if i == 0 else "",
                     "color": overlay_colors[idx % len(overlay_colors)],
                     "group": "overlay",
                     "title": f"Overlay: {overlay.name} (Src: {src_interface}, Dst: {dst_interface})",
                     "dashes": True,
+                    "width": 4,  # Thicker for highlighting
                 })
-            else:
-                logger.debug("Skipping overlay %s: invalid src=%s or dst=%s or interfaces",
-                            overlay.name, src_device, dst_device)
 
         logger.debug("Returning %d nodes and %d edges", len(nodes), len(edges))
         return JsonResponse({"nodes": nodes, "edges": edges})
@@ -268,6 +312,8 @@ def get_onos_topology(request):
     except Exception as e:
         logger.error("Unexpected error in get_onos_topology: %s", str(e), exc_info=True)
         return JsonResponse({"error": f"Internal server error: {str(e)}"}, status=500)
+  
+
 # @login_required
 # @role_required('admin')
 # def dashboard(request):
@@ -764,10 +810,13 @@ def demande_detail_client(request, demande_id):
 def valider_demande_overlay(request, demande_id):
     demande = get_object_or_404(DemandeOverlay, id=demande_id)
     if request.method == 'POST':
+        # Update demande status
         demande.status = 'validee'
         demande.reviewed_at = timezone.now()
         demande.save()
-        Overlay.objects.create(
+
+        # Create Overlay
+        overlay = Overlay.objects.create(
             user=demande.client,
             name=demande.name,
             type=demande.configuration.get('overlay_type', ''),
@@ -776,6 +825,56 @@ def valider_demande_overlay(request, demande_id):
             description=demande.description,
             configuration=demande.configuration.get('overlay_segments', {})
         )
+
+        # Fetch ONOS links for path computation
+        try:
+            links_response = requests.get(
+                f"{ONOS_URL}/links",
+                auth=ONOS_AUTH,
+                timeout=REQUEST_TIMEOUT
+            )
+            links_response.raise_for_status()
+            links = links_response.json().get("links", [])
+            logger.debug("Fetched %d links for path computation", len(links))
+        except requests.RequestException as e:
+            logger.error("Failed to fetch ONOS links: %s", str(e))
+            links = []
+
+        # Build graph for shortest path
+        graph = {}
+        for link in links:
+            src = link.get("src", {}).get("device")
+            dst = link.get("dst", {}).get("device")
+            if src and dst:
+                if src not in graph:
+                    graph[src] = []
+                if dst not in graph:
+                    graph[dst] = []
+                graph[src].append(dst)
+                graph[dst].append(src)  # Undirected
+
+        # Extract source and destination from configuration
+        config = demande.configuration.get('overlay_segments', [])
+        if isinstance(config, list) and len(config) >= 2:
+            src_device = config[0].get("device_name")
+            dst_device = config[1].get("device_name")
+            if src_device and dst_device:
+                # Compute shortest path
+                path = dijkstra(graph, src_device, dst_device)
+                if path:
+                    logger.debug("Computed path for overlay %s: %s", overlay.name, path)
+                    UnderlayNetwork.objects.create(
+                        overlay=overlay,
+                        switches=path
+                    )
+                else:
+                    logger.warning("No path found for overlay %s between %s and %s", overlay.name, src_device, dst_device)
+            else:
+                logger.warning("Invalid src=%s or dst=%s for overlay %s", src_device, dst_device, overlay.name)
+        else:
+            logger.warning("Invalid overlay_segments for overlay %s: %s", overlay.name, config)
+
+        # Update notifications and send email
         Notification.objects.filter(demand=demande).update(is_read=True)
         send_mail(
             'Demande validée',

@@ -10,9 +10,9 @@
         <div class="row clearfix">
             <div class="col-12">
                 <h2>Welcome, {{ user.first_name }} {{ user.last_name }}</h2>
-                <div class="dropdown float-right">
+                <div class="dropdown">
                     <button class="btn btn-primary dropdown-toggle" type="button" data-toggle="dropdown">
-                        Notifications <span class=" small-badge  badge-light">{{ notification_count }}</span>
+                        Notifications <span class="badge badge-light">{{ notification_count }}</span>
                     </button>
                     <div class="dropdown-menu">
                         {% for notification in notifications %}
@@ -84,7 +84,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 edges: {
                     font: { size: 12 },
                     smooth: { type: "continuous" },
-                    arrows: { to: { enabled: true, scaleFactor: 0.5 } }, // Arrows for underlay
+                    arrows: { to: { enabled: true, scaleFactor: 0.5 } },
                 },
                 physics: {
                     forceAtlas2Based: {
