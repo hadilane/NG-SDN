@@ -10,9 +10,9 @@
         <div class="row clearfix">
             <div class="col-12">
                 <h2>Welcome, {{ user.first_name }} {{ user.last_name }}</h2>
-                <div class="dropdown">
+                <div class="dropdown float-right">
                     <button class="btn btn-primary dropdown-toggle" type="button" data-toggle="dropdown">
-                        Notifications <span class="badge badge-light">{{ notification_count }}</span>
+                        Notifications <span class=" small-badge  badge-light">{{ notification_count }}</span>
                     </button>
                     <div class="dropdown-menu">
                         {% for notification in notifications %}
