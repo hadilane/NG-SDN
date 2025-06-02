@@ -1,5 +1,7 @@
 {% extends "home.html" %}
 
+{% load static %}
+
 {% block title %}Dashboard - NG-SDN{% endblock %}
 
 {% block content %}
@@ -87,7 +89,10 @@
                                             </label>
                                         </td>
                                         <td>{{ overlay.name }}</td>
-                                        <td><span class="tag tag-default">{{ overlay.status }}</span></td>
+                                        <td>
+                                        <span class="badge {% if overlay.status == 'Active' %}badge-success{% elif overlay.status == 'Inactive' %}badge-danger{% endif %}">
+                                            {{ overlay.status }}
+                                        </span></td>
                                         <td>{{ overlay.created_at }}</td>
                                         <td>
                                             <a href="{% url 'overlay_detail' overlay.id %}" class="btn btn-sm btn-info">View</a>

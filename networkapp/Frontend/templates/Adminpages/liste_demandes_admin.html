@@ -65,11 +65,11 @@
                         <table class="table table-hover table-striped table-vcenter mb-0 text-nowrap">
                             <thead>
                                 <tr>
-                                    <th colspan="5">Demandes list</th>
-                                    <th colspan="1" class="text-end">
-                                        <a href="{% url 'dashboard' %}" class="btn btn-primary btn-sm">
-                                            Back to Dashboard <span class="badge badge-light">{{ notification_count }}</span>
-                                        </a>
+                                    <th colspan="7">
+                                        <div class="table-header-content">
+                                            <span class="table-title">Demandes list</span>
+                                            <a href="{% url 'dashboard' %}" class="btn btn-primary btn-sm float-right">Back to Dashboard</a>
+                                        </div>
                                     </th>
                                 </tr>
                                 <tr>
@@ -96,9 +96,11 @@
                                         <a href="{% url 'demande_detail' demande.id %}">{{ demande.name }}</a>
                                     </td>
                                     <td>{{ demande.client.first_name }} {{ demande.client.last_name }}</td>
-                                    <td> <span class="badge {% if demande.status == 'en_attente' %}badge-warning{% elif demande.status == 'validee' %}badge-success{% elif demande.status == 'rejetee' %}badge-danger{% endif %}">
+                                    <td>
+                                        <span class="badge {% if demande.status == 'en_attente' %}badge-warning{% elif demande.status == 'validee' %}badge-success{% elif demande.status == 'rejetee' %}badge-danger{% endif %}">
                                             {{ demande.get_status_display }}
-                                        </span></td>
+                                        </span>
+                                    </td>
                                     <td>{{ demande.created_at|date:"Y-m-d H:i" }}</td>
                                     <td>
                                         <a href="{% url 'demande_detail' demande.id %}" class="btn btn-sm btn-info">Details</a>

@@ -1,19 +1,19 @@
 {
 
-"overlay_name": "Overlay-4",
+"overlay_name": "Overlay-5",
 "overlay_type": "IPv4Overlay",
-"overlay_status": "Active",
-"overlay_description": "this is an overlay to route the messages trafic",
+"overlay_status": "Inactive",
+"overlay_description": "this is an overlay to route the photos trafic",
 "overlay_tunnel_mode": "VXLAN",
 
 "overlay_segments": [ 
     {
-        "device_name": "ewED4",
-        "device_LAN_interface": "ewED4-eth3"
+        "device_name": "ewED6",
+        "device_LAN_interface": "ewED6-eth3"
     },
     {
-        "device_name": "ewED5",
-        "device_LAN_interface": "ewED5-eth3"
+        "device_name": "ewED7",
+        "device_LAN_interface": "ewED7-eth3"
     }
 ] 
 

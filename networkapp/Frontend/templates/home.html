@@ -143,7 +143,13 @@
 
     <link rel="stylesheet" href="{% static 'assets/plugins/bootstrap/css/bootstrap.min.css' %}">
     <link rel="stylesheet" href="{% static 'assets/css/main.css' %}">
-    <link rel="stylesheet" href="{% static 'assets/css/theme1.css' %}">
+    <link rel="stylesheet" href="{% static 'assets/css/theme1.css' %}">   
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <style>
+        .segment-container { margin-bottom: 15px; }
+        .segment-fields { display: flex; gap: 10px; }
+        .remove-segment-btn { align-self: center; }
+    </style>
      <style>
         .badge {
             padding: 0.3em 0.4em; /* Larger padding for bigger background */
@@ -166,6 +172,28 @@
         .badge-secondary {
             color: #fff; /* White text for default/unknown status */
             background-color: #6c757d; /* Bootstrap secondary gray */
+        }
+
+        .table-header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.1rem 0.6rem;
+        }
+
+        .table-header-content .table-title {
+            font-size: 0.8rem;
+            font-weight: 400;
+            color: #8d8f91;
+        }
+
+        .table-header-content .btn-sm {
+            font-size: 0.875rem;
+            padding: 0.25rem 0.5rem;
+        }
+
+        .table-vcenter thead th {
+            vertical-align: middle;
         }
     </style>
 </head>

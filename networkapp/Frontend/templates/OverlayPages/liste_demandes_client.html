@@ -64,12 +64,16 @@
                     <div class="table-responsive">
                         <table class="table table-hover table-striped table-vcenter mb-0 text-nowrap">
                             <thead>
-                                <tr>
-                                    <th colspan="4">Demandes list</th>
-                                    <th colspan="1" class="text-end">
-                                        <a href="{% url 'create_demande_overlay' %}" class="btn btn-primary btn-sm">Add Demand</a>
+                                 <tr>
+                                    <th colspan="7">
+                                        <div class="table-header-content">
+                                            <span class="table-title">Demandes list</span>
+                    
+                                             <a href="{% url 'create_demande_overlay' %}" class="btn btn-primary btn-sm float-right">Add Demand</a>
+                                        </div>
                                     </th>
                                 </tr>
+                               
                                 <tr>
                                     <th class="w30"> </th>
                                     <th>Name</th>
@@ -89,7 +93,7 @@
                                         </label>
                                     </td>
                                     <td>
-                                        <a href="{% url 'demande_detail' demande.id %}">{{ demande.name }}</a>
+                                        <a href="{% url 'demande_detail_client' demande.id %}">{{ demande.name }}</a>
                                     </td>
                                     <td>
                                         <span class="badge {% if demande.status == 'en_attente' %}badge-warning{% elif demande.status == 'validee' %}badge-success{% elif demande.status == 'rejetee' %}badge-danger{% endif %}">

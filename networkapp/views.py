@@ -1,5 +1,7 @@
 
 from datetime import timezone
+
+import requests
 from .models import Overlay
 from .onos_api import get_topology
 from django.http import JsonResponse
@@ -60,10 +62,10 @@ import json
 import logging
 from django.views.generic import FormView
 from django.urls import reverse_lazy
+from requests.auth import HTTPBasicAuth
 
 
-
-
+logger = logging.getLogger(__name__)  # for auditing
 
 # Create your views here.
 
@@ -85,27 +87,122 @@ def view_topology(request):
 
 
 
+ONOS_URL = "http://192.168.56.101:8181/onos/v1"  # Replace with your ONOS IP
+ONOS_AUTH = HTTPBasicAuth("onos", "rocks")
+
 @login_required
 @role_required('admin')
 def dashboard(request):
-    notifications = Notification.objects.filter(user=request.user, is_read=False).order_by('-created_at')
-    notification_count = notifications.count()
-    return render(request, 'Adminpages/dashboard.html', {
-        'page_title': 'Dashboard',
-        'notifications': notifications,
+    notification_count = Notification.objects.filter(user=request.user, is_read=False).count()
+    notifications = Notification.objects.filter(user=request.user).order_by('-created_at')[:5]
+    demandes = DemandeOverlay.objects.all()[:5]
+    
+    context = {
         'notification_count': notification_count,
-        'user': request.user
-    })
+        'notifications': notifications,
+        'demandes': demandes,
+        'user': request.user,
+    }
+    return render(request, 'Adminpages/dashboard.html', context)
+
+def get_onos_topology(request):
+    try:
+        # Fetch devices (switches)
+        devices_response = requests.get(f"{ONOS_URL}/devices", auth=ONOS_AUTH)
+        devices_response.raise_for_status()
+        devices = devices_response.json().get("devices", [])
+
+        # Fetch links
+        links_response = requests.get(f"{ONOS_URL}/links", auth=ONOS_AUTH)
+        links_response.raise_for_status()
+        links = links_response.json().get("links", [])
+
+        # Fetch intents (overlays)
+        intents_response = requests.get(f"{ONOS_URL}/intents", auth=ONOS_AUTH)
+        intents_response.raise_for_status()
+        intents = intents_response.json().get("intents", [])
+
+        # Process devices
+        nodes = []
+        for device in devices:
+            device_id = device["id"]
+            annotations = device.get("annotations", {})
+            ip_address = annotations.get("managementAddress", "N/A")
+            
+            # Fetch device ports
+            ports_response = requests.get(f"{ONOS_URL}/devices/{device_id}/ports", auth=ONOS_AUTH)
+            ports_response.raise_for_status()
+            ports = [p["port"] for p in ports_response.json().get("ports", []) if p["isEnabled"]]
+            ports_str = ", ".join(ports) if ports else "None"
+
+            nodes.append({
+                "id": device_id,
+                "label": f"{device_id}\nIP: {ip_address}\nPorts: {ports_str}",
+                "group": "switch",
+                "image": "/static/assets/images/switch-icon.png",  # Switch icon
+                "shape": "image",
+            })
+
+        # Process links (underlay)
+        edges = []
+        for link in links:
+            src = link["src"]["device"]
+            dst = link["dst"]["device"]
+            src_port = link["src"]["port"]
+            dst_port = link["dst"]["port"]
+            edges.append({
+                "from": src,
+                "to": dst,
+                "label": f"{src_port} ↔ {dst_port}",
+                "color": "black",  # Underlay links are black
+                "group": "underlay",
+            })
+
+        # Process intents (overlays)
+        overlay_colors = ["#FF5733", "#33FF57", "#3357FF", "#FF33A1", "#A133FF"]  # Distinct colors
+        for idx, intent in enumerate(intents):
+            intent_id = intent["id"]
+            app_id = intent["appId"]
+            selector = intent.get("selector", {}).get("criteria", [])
+            treatment = intent.get("treatment", {}).get("instructions", [])
+            
+            # Extract source and destination from intent resources
+            resources = intent.get("resources", [])
+            for i in range(len(resources) - 1):
+                src = resources[i].split("/")[0]
+                dst = resources[i + 1].split("/")[0]
+                if src in [n["id"] for n in nodes] and dst in [n["id"] for n in nodes]:
+                    edges.append({
+                        "from": src,
+                        "to": dst,
+                        "label": intent_id,
+                        "color": overlay_colors[idx % len(overlay_colors)],
+                        "group": "overlay",
+                        "title": f"Overlay: {app_id} (Intent: {intent_id})",  # Hover tooltip
+                        "dashes": True,  # Dashed line for overlays
+                    })
+
+        return JsonResponse({"nodes": nodes, "edges": edges})
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+# @login_required
+# @role_required('admin')
+# def dashboard(request):
+#     return render(request, 'Adminpages/dashboard.html', {
+#         'page_title': 'Dashboard',
+#         'user': request.user
+#     })
 
 
 # Registration
 
-logger = logging.getLogger(__name__)  # for auditing
 
+
+# Registration
 @login_required
 @role_required('admin')
 def register_view(request):
-    """ Handle user registration with role assignment """
     if request.method == 'POST':
         form = CustomUserCreationForm(request.POST)
         if form.is_valid():
@@ -114,7 +211,10 @@ def register_view(request):
             return redirect('login')
     else:
         form = CustomUserCreationForm()
-    return render(request, 'Authentication/register.html', {'form': form})
+    return render(request, 'Authentication/register.html', {
+        'form': form,
+        'page_title': 'Register User'
+    })
 
 
 # Login
@@ -138,7 +238,10 @@ def login_view(request):
                 return redirect('overlays_list')
     else:
         form = CustomAuthenticationForm()
-    return render(request, 'Authentication/login.html', {'form': form})
+    return render(request, 'Authentication/login.html', {
+        'form': form,
+        'page_title': 'Login'
+    })
 
 
 # Logout
@@ -235,6 +338,7 @@ def clients_list(request):
 def delete_client(request, user_id):
     user = get_object_or_404(CustomUser, id=user_id, role='client')
     user.delete()
+    messages.success(request, 'Client deleted successfully.')
     return redirect('clients')
 
 @login_required
@@ -243,6 +347,7 @@ def toggle_client_status(request, user_id):
     user = get_object_or_404(CustomUser, id=user_id, role='client')
     user.is_active = not user.is_active
     user.save()
+    messages.success(request, f"Client {'activated' if user.is_active else 'deactivated'} successfully.")
     return redirect('clients')
 
 
@@ -254,7 +359,7 @@ def profile_view(request):
     return render(request, 'OverlayPages/client-profile.html', {
         'user': request.user,
         'overlays': overlays,
-        'page_title': 'My profile'
+        'page_title': 'My Profile'
     })
 
 
@@ -263,7 +368,7 @@ def profile_view(request):
 def adminprofile_view(request):
     return render(request, 'Adminpages/admin-profile.html', {
         'user': request.user,
-        'page_title': 'My profile'
+        'page_title': 'My Profile'
     })
 
 
@@ -327,7 +432,7 @@ def overlay_detail(request, overlay_id):
     return render(request, 'OverlayPages/overlay-detail.html', {
         'overlay': overlay,
         'topology_json': config_data,
-        'page_title': 'Overlay detail'
+        'page_title': 'Overlay Detail'
     })
 
 
@@ -428,7 +533,7 @@ def create_demande_overlay(request):
                         return render(request, 'OverlayPages/add-overlay.html', {
                             'form': form,
                             'upload_form': upload_form,
-                            'page_title': 'Ajouter une demande d’overlay'
+                            'page_title': 'Add new Overlay Demand'
                         })
                     demande = DemandeOverlay.objects.create(
                         client=request.user,
@@ -497,7 +602,7 @@ def liste_demandes_client(request):
 
     return render(request, 'OverlayPages/liste_demandes_client.html', {
         'demandes': demandes,
-        'page_title': 'Mes demandes d’overlay',
+        'page_title': 'My demandes',
         'search_query': {
             'id': overlay_id or '',
             'name': name or '',
@@ -536,10 +641,9 @@ def liste_demandes_admin(request):
         except ValueError:
             messages.error(request, "Invalid date format. Use YYYY-MM-DD.")
 
-    notifications = Notification.objects.filter(user=request.user, is_read=False).count()
+   
     return render(request, 'Adminpages/liste_demandes_admin.html', {
         'demandes': demandes,
-        'notification_count': notifications,
         'page_title': 'Demands list',
         'search_query': {
             'id': overlay_id or '',
@@ -597,9 +701,12 @@ def valider_demande_overlay(request, demande_id):
             settings.DEFAULT_FROM_EMAIL,
             [demande.client.email]
         )
-        messages.success(request, "Demande validée et overlay créé.")
+        messages.success(request, "Demande validated and overlay created.")
         return redirect('liste_demandes_admin')
-    return render(request, 'Adminpages/valider_demande.html', {'demande': demande})
+    return render(request, 'Adminpages/valider_demande.html', {
+        'demande': demande,
+        'page_title': f"Valider Demande: {demande.name}"
+    })
 
 
 @login_required
@@ -619,14 +726,18 @@ def rejeter_demande_overlay(request, demande_id):
             settings.DEFAULT_FROM_EMAIL,
             [demande.client.email]
         )
-        messages.warning(request, "Demande rejetée.")
+        messages.warning(request, "Demande rejected.")
         return redirect('liste_demandes_admin')
-    return render(request, 'Adminpages/rejeter_demande.html', {'demande': demande})
+    return render(request, 'Adminpages/rejeter_demande.html', {
+        'demande': demande,
+        'page_title': f"Rejeter Demande: {demande.name}"
+    })
 
 @login_required
 @role_required('admin')
 def mark_notifications_read(request):
     Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
+    messages.success(request, "All notifications marked as read.")
     return redirect('dashboard')
 
 
