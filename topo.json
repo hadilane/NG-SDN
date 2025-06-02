@@ -6,15 +6,9 @@
 "overlay_description": "this is an overlay to route the photos trafic",
 "overlay_tunnel_mode": "VXLAN",
 
-"overlay_segments": [ 
-    {
-        "device_name": "ewED6",
-        "device_LAN_interface": "ewED6-eth3"
-    },
-    {
-        "device_name": "ewED7",
-        "device_LAN_interface": "ewED7-eth3"
-    }
-] 
+"overlay_segments": [
+ {"device_name": "device:r1", "device_LAN_interface": "r1-eth3"},
+ {"device_name": "device:r4", "device_LAN_interface": "r4-eth3"}, 
+ {"device_name": "device:r5", "device_LAN_interface": "r5-eth3"}]
 
 }

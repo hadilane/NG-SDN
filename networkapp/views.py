@@ -59,6 +59,7 @@ from .models import CustomUser, Overlay, DemandeOverlay, Notification
 from datetime import datetime, timezone as tz
 from django.utils.crypto import get_random_string
 import json
+import re
 import logging
 from django.views.generic import FormView
 from django.urls import reverse_lazy
@@ -86,20 +87,22 @@ def view_topology(request):
     })
 
 
-
-ONOS_URL = "http://192.168.56.101:8181/onos/v1"  # Replace with your ONOS IP
+ONOS_URL = "http://192.168.214.133:8181/onos/v1"  # ONOS IP
 ONOS_AUTH = HTTPBasicAuth("onos", "rocks")
+REQUEST_TIMEOUT = 10  # seconds
+# Map Overlay device_name to ONOS device IDs (update as needed)
+DEVICE_NAME_MAPPING = {
+    "ewED4": "device:r1",
+    "ewED5": "device:r2",
+    # Add mappings for other devices, e.g., "ewED6": "device:r3"
+}
 
 @login_required
 @role_required('admin')
 def dashboard(request):
-    notification_count = Notification.objects.filter(user=request.user, is_read=False).count()
-    notifications = Notification.objects.filter(user=request.user).order_by('-created_at')[:5]
-    demandes = DemandeOverlay.objects.all()[:5]
-    
+   
+    demandes = DemandeOverlay.objects.all()[:5]   
     context = {
-        'notification_count': notification_count,
-        'notifications': notifications,
         'demandes': demandes,
         'user': request.user,
     }
@@ -108,84 +111,163 @@ def dashboard(request):
 def get_onos_topology(request):
     try:
         # Fetch devices (switches)
-        devices_response = requests.get(f"{ONOS_URL}/devices", auth=ONOS_AUTH)
+        logger.debug("Fetching devices from %s/devices", ONOS_URL)
+        devices_response = requests.get(
+            f"{ONOS_URL}/devices",
+            auth=ONOS_AUTH,
+            timeout=REQUEST_TIMEOUT
+        )
         devices_response.raise_for_status()
         devices = devices_response.json().get("devices", [])
+        logger.debug("Found %d devices", len(devices))
 
         # Fetch links
-        links_response = requests.get(f"{ONOS_URL}/links", auth=ONOS_AUTH)
-        links_response.raise_for_status()
-        links = links_response.json().get("links", [])
-
-        # Fetch intents (overlays)
-        intents_response = requests.get(f"{ONOS_URL}/intents", auth=ONOS_AUTH)
-        intents_response.raise_for_status()
-        intents = intents_response.json().get("intents", [])
+        logger.debug("Fetching links from %s/links", ONOS_URL)
+        try:
+            links_response = requests.get(
+                f"{ONOS_URL}/links",
+                auth=ONOS_AUTH,
+                timeout=REQUEST_TIMEOUT
+            )
+            links_response.raise_for_status()
+            links = links_response.json().get("links", [])
+            logger.debug("Found %d links", len(links))
+        except requests.RequestException as e:
+            logger.warning("Failed to fetch links: %s", str(e))
+            links = []
 
         # Process devices
         nodes = []
         for device in devices:
-            device_id = device["id"]
+            device_id = device.get("id")
+            if not device_id:
+                logger.warning("Device missing ID: %s", device)
+                continue
+            available = device.get("available", False)
             annotations = device.get("annotations", {})
-            ip_address = annotations.get("managementAddress", "N/A")
+            management_address = annotations.get("managementAddress", "N/A")
+            if management_address.startswith("grpc://"):
+                ip_address = "N/A"
+            else:
+                ip_address = management_address
             
             # Fetch device ports
-            ports_response = requests.get(f"{ONOS_URL}/devices/{device_id}/ports", auth=ONOS_AUTH)
-            ports_response.raise_for_status()
-            ports = [p["port"] for p in ports_response.json().get("ports", []) if p["isEnabled"]]
-            ports_str = ", ".join(ports) if ports else "None"
+            logger.debug("Fetching ports for device %s", device_id)
+            try:
+                ports_response = requests.get(
+                    f"{ONOS_URL}/devices/{device_id}/ports",
+                    auth=ONOS_AUTH,
+                    timeout=REQUEST_TIMEOUT
+                )
+                ports_response.raise_for_status()
+                ports = [p["port"] for p in ports_response.json().get("ports", []) if p.get("isEnabled")]
+                ports_str = ", ".join(ports) if ports else "None"
+            except requests.RequestException as e:
+                logger.error("Failed to fetch ports for %s: %s", device_id, str(e))
+                ports_str = "Error"
 
             nodes.append({
                 "id": device_id,
-                "label": f"{device_id}\nIP: {ip_address}\nPorts: {ports_str}",
+                "label": f"{device_id} ({'Online' if available else 'Offline'})",
+                "title": f"IP: {ip_address}\nPorts: {ports_str}\nStatus: {'Online' if available else 'Offline'}",
                 "group": "switch",
-                "image": "/static/assets/images/switch-icon.png",  # Switch icon
+                "image": "/static/assets/images/switch-icon.png",
                 "shape": "image",
+                "color": "#28a745" if available else "#dc3545",  # Green for online, red for offline
             })
 
-        # Process links (underlay)
+        # Process links (underlay) and aggregate bidirectional links
         edges = []
+        seen_links = set()
         for link in links:
-            src = link["src"]["device"]
-            dst = link["dst"]["device"]
-            src_port = link["src"]["port"]
-            dst_port = link["dst"]["port"]
-            edges.append({
-                "from": src,
-                "to": dst,
-                "label": f"{src_port} ↔ {dst_port}",
-                "color": "black",  # Underlay links are black
-                "group": "underlay",
-            })
+            src = link.get("src", {}).get("device")
+            dst = link.get("dst", {}).get("device")
+            src_port = link.get("src", {}).get("port", "")
+            dst_port = link.get("dst", {}).get("port", "")
+            # Extract numeric port (e.g., "[r7-eth2](2)" → "2")
+            src_port_num = re.search(r'\((\d+)\)', src_port)
+            src_port_num = src_port_num.group(1) if src_port_num else src_port
+            dst_port_num = dst_port  # Destination ports are already numeric
 
-        # Process intents (overlays)
-        overlay_colors = ["#FF5733", "#33FF57", "#3357FF", "#FF33A1", "#A133FF"]  # Distinct colors
-        for idx, intent in enumerate(intents):
-            intent_id = intent["id"]
-            app_id = intent["appId"]
-            selector = intent.get("selector", {}).get("criteria", [])
-            treatment = intent.get("treatment", {}).get("instructions", [])
-            
-            # Extract source and destination from intent resources
-            resources = intent.get("resources", [])
-            for i in range(len(resources) - 1):
-                src = resources[i].split("/")[0]
-                dst = resources[i + 1].split("/")[0]
-                if src in [n["id"] for n in nodes] and dst in [n["id"] for n in nodes]:
-                    edges.append({
-                        "from": src,
-                        "to": dst,
-                        "label": intent_id,
-                        "color": overlay_colors[idx % len(overlay_colors)],
-                        "group": "overlay",
-                        "title": f"Overlay: {app_id} (Intent: {intent_id})",  # Hover tooltip
-                        "dashes": True,  # Dashed line for overlays
-                    })
+            if not (src and dst and src_port_num and dst_port_num):
+                logger.warning("Invalid link data: %s", link)
+                continue
 
+            # Create a canonical link key to deduplicate bidirectional links
+            link_key = tuple(sorted([src, dst]))
+            if link_key not in seen_links:
+                seen_links.add(link_key)
+                # Check for reverse link to combine ports
+                reverse_link = next(
+                    (l for l in links
+                     if l.get("src", {}).get("device") == dst and l.get("dst", {}).get("device") == src),
+                    None
+                )
+                if reverse_link:
+                    rev_src_port = reverse_link.get("src", {}).get("port", "")
+                    rev_dst_port = reverse_link.get("dst", {}).get("port", "")
+                    rev_src_port_num = re.search(r'\((\d+)\)', rev_src_port)
+                    rev_src_port_num = rev_src_port_num.group(1) if rev_src_port_num else rev_src_port
+                    rev_dst_port_num = rev_dst_port
+                    label = f"{src_port_num} ↔ {rev_src_port_num}"
+                else:
+                    label = f"{src_port_num} → {dst_port_num}"
+
+                edges.append({
+                    "from": src,
+                    "to": dst,
+                    "label": label,
+                    "color": "black",
+                    "group": "underlay",
+                })
+
+        # Fetch overlays from database
+        logger.debug("Fetching overlays for user %s", request.user)
+        overlays = Overlay.objects.filter(user=request.user, status="Active")
+        logger.debug("Found %d overlays", overlays.count())
+
+        # Process overlays
+        overlay_colors = ["#FF5733", "#33FF57", "#3357FF", "#FF33A1", "#A133FF"]
+        for idx, overlay in enumerate(overlays):
+            config = overlay.configuration or []
+            if not isinstance(config, list) or len(config) < 2:
+                logger.debug("Skipping overlay %s: invalid configuration %s", overlay.name, config)
+                continue
+            # Extract src and dst with mapping
+            src_device = DEVICE_NAME_MAPPING.get(config[0].get("device_name"), config[0].get("device_name"))
+            src_interface = config[0].get("device_LAN_interface")
+            dst_device = DEVICE_NAME_MAPPING.get(config[1].get("device_name"), config[1].get("device_name"))
+            dst_interface = config[1].get("device_LAN_interface")
+            if (src_device and dst_device and src_interface and dst_interface and
+                src_device in [n["id"] for n in nodes] and dst_device in [n["id"] for n in nodes]):
+                edges.append({
+                    "from": src_device,
+                    "to": dst_device,
+                    "label": overlay.name,
+                    "color": overlay_colors[idx % len(overlay_colors)],
+                    "group": "overlay",
+                    "title": f"Overlay: {overlay.name} (Src: {src_interface}, Dst: {dst_interface})",
+                    "dashes": True,
+                })
+            else:
+                logger.debug("Skipping overlay %s: invalid src=%s or dst=%s or interfaces",
+                            overlay.name, src_device, dst_device)
+
+        logger.debug("Returning %d nodes and %d edges", len(nodes), len(edges))
         return JsonResponse({"nodes": nodes, "edges": edges})
-    except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
 
+    except requests.ConnectionError as e:
+        logger.error("Connection to ONOS failed: %s", str(e))
+        return JsonResponse({"error": "Cannot connect to ONOS. Check IP and if ONOS is running."}, status=500)
+    except requests.Timeout as e:
+        logger.error("ONOS request timed out: %s", str(e))
+        return JsonResponse({"error": "ONOS request timed out. Check network or increase timeout."}, status=500)
+    except requests.HTTPError as e:
+        logger.error("ONOS HTTP error: %s", str(e))
+        return JsonResponse({"error": f"ONOS API error: {str(e)}"}, status=500)
+    except Exception as e:
+        logger.error("Unexpected error in get_onos_topology: %s", str(e), exc_info=True)
+        return JsonResponse({"error": f"Internal server error: {str(e)}"}, status=500)
 # @login_required
 # @role_required('admin')
 # def dashboard(request):
