@@ -76,9 +76,6 @@ logger = logging.getLogger(__name__)  # for auditing
 
 
 
-ONOS_URL = "http://192.168.214.133:8181/onos/v1"  # ONOS IP
-ONOS_AUTH = HTTPBasicAuth("onos", "rocks")
-REQUEST_TIMEOUT = 10  # seconds
 
 
 # Create your views here.
@@ -166,6 +163,12 @@ def dijkstra(graph, start, end):
             if neighbor not in visited:
                 heappush(queue, (cost + 1, neighbor, path + [neighbor]))
     return []
+
+
+
+ONOS_URL = "http://192.168.214.133:8181/onos/v1"  # ONOS IP
+ONOS_AUTH = HTTPBasicAuth("onos", "rocks")
+REQUEST_TIMEOUT = 10  # seconds
 
 def get_onos_topology(request):
     try:
@@ -975,7 +978,7 @@ def valider_demande_overlay(request, demande_id):
         )
 
         # Handle script uploads
-        fs = FileSystemStorage(location=os.path.join(settings.MEDIA_ROOT, 'scripts'))  # Changed to media/scripts
+        fs = FileSystemStorage(location=os.path.join(settings.MEDIA_ROOT, 'scripts'))
         config_scripts = {}
         for switch in path:
             script_key = f'script_{switch}'
@@ -1006,11 +1009,12 @@ def valider_demande_overlay(request, demande_id):
             saved_path = fs.save(filename, script_file)
             config_scripts[switch] = os.path.join('scripts', saved_path)  # Store relative path
 
-        # Execute scripts on VM
+        """
+        # Commented out: Script execution on VM
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         try:
-            ssh.connect('192.168.214.133', username='admin', password='admin', timeout=10)
+            ssh.connect('192.168.214.133', username='p4sdn', password='p4sdn', timeout=10)
             for switch, script_path in config_scripts.items():
                 # Copy script to VM
                 with ssh.open_sftp() as sftp:
@@ -1048,6 +1052,7 @@ def valider_demande_overlay(request, demande_id):
             })
         finally:
             ssh.close()
+        """
 
         # Save underlay network with scripts
         UnderlayNetwork.objects.create(
@@ -1060,11 +1065,11 @@ def valider_demande_overlay(request, demande_id):
         Notification.objects.filter(demand=demande).update(is_read=True)
         send_mail(
             'Demande validée',
-            f"Votre demande d'overlay '{demande.name}' a été validée.",
+            f"Votre demande d'overlay '{demande.name}' a été validée. Scripts ont été enregistrés.",
             settings.DEFAULT_FROM_EMAIL,
             [demande.client.email]
         )
-        messages.success(request, "Demande validated, scripts executed, and overlay created.")
+        messages.success(request, "Demande validated, scripts saved, and overlay created.")
         return redirect('liste_demandes_admin')
     
     return render(request, 'Adminpages/valider_demande.html', {

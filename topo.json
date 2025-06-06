@@ -1,7 +1,7 @@
 {
 
-"overlay_name": "Overlay-test2",
-"overlay_type": "IPv4Overlay",
+"overlay_name": "Overlay-demo",
+"overlay_type": "IPv6Overlay",
 "overlay_status": "Active",
 "overlay_description": "this is an overlay to route the photos trafic",
 "overlay_tunnel_mode": "VXLAN",

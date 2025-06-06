@@ -17,3 +17,36 @@ ul.errorlist li {
     margin-top: -5px;
     margin-bottom: 5px;
 }
+
+/* Ensure icons display */
+.fas, .fa {
+    display: inline-block;
+    
+    font-size: inherit;
+    text-rendering: auto;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Highlight active menu item */
+.metismenu li.active {
+    background-color: #f8f9fa; /* Light gray background */
+   
+}
+.metismenu li.active a {
+    color: #004085; /* Blue text */
+    font-weight: bold;
+}
+
+/* Fix xs-hide visibility (adjust breakpoint if needed) */
+@media (max-width: 767px) {
+    .xs-hide {
+        display: none !important;
+    }
+}
+
+/* Brand logo styling */
+.brand-logo {
+    font-size: 14px;
+    color: #333;
+}

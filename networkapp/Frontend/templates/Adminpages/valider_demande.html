@@ -31,7 +31,7 @@
                     <p class="text-danger">No valid path found. Check ONOS connectivity or configuration.</p>
                 {% endif %}
                 {% if underlay_path %}
-                    <h5>Upload Configuration Scripts</h5>
+                    <h5>Upload Configurations</h5>
                     <form method="post" enctype="multipart/form-data">
                         {% csrf_token %}
                         {% for switch in underlay_path %}
