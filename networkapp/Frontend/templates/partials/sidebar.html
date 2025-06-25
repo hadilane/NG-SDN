@@ -261,12 +261,15 @@
 
 <div id="left-sidebar" class="sidebar">
     <h5 class="brand-name">NG_SDN<a href="javascript:void(0)" class="menu_option float-right"><i class="fas fa-th font-16" data-toggle="tooltip" data-placement="left" title="Grid & List Toggle"></i></a></h5>
+    <br>
     <nav id="left-sidebar-nav" class="sidebar-nav">
+
         <ul class="metismenu">
-            <li class="g_heading">Project</li>
+            
             <li {% if request.resolver_match.view_name == 'dashboard' %}class="active"{% endif %}><a href="{% url 'dashboard' %}"><i class="fas fa-tachometer-alt"></i><span>Dashboard</span></a></li>
             <li {% if request.resolver_match.view_name == 'clients' %}class="active"{% endif %}><a href="{% url 'clients' %}"><i class="fas fa-list-ol"></i><span>Clients list</span></a></li>
             <li {% if request.resolver_match.view_name == 'liste_demandes_admin' %}class="active"{% endif %}><a href="{% url 'liste_demandes_admin' %}"><i class="fas fa-list-ul"></i><span>Demands list</span></a></li>
+              <li {% if request.resolver_match.view_name == 'overlays_list' %}class="active"{% endif %}><a href="{% url 'overlays_list' %}"><i class="fas fa-list-ol"></i><span>Overlays list</span></a></li>
         </ul>
     </nav>
 </div>

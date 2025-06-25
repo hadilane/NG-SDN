@@ -261,9 +261,10 @@
 
 <div id="left-sidebar" class="sidebar">
     <h5 class="brand-name">NG_SDN <a href="javascript:void(0)" class="menu_option float-right"><i class="fas fa-th"></i></a></h5>
+   <br>
     <nav id="left-sidebar-nav" class="sidebar-nav">
         <ul class="metismenu">
-            <li class="g_heading">Client</li>
+            
             <li {% if request.resolver_match.view_name == 'overlays_list' %}class="active"{% endif %}>
                 <a href="{% url 'overlays_list' %}"><i class="fas fa-list-ol"></i><span>Overlay List</span></a>
             </li>

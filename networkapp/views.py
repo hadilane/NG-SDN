@@ -166,9 +166,9 @@ def dijkstra(graph, start, end):
 
 
 
-ONOS_URL = "http://192.168.214.133:8181/onos/v1"  # ONOS IP
+ONOS_URL = "http://193.194.66.123:8181/onos/v1"  # ONOS IP
 ONOS_AUTH = HTTPBasicAuth("onos", "rocks")
-REQUEST_TIMEOUT = 10  # seconds
+REQUEST_TIMEOUT = 30  # seconds
 
 def get_onos_topology(request):
     try:
