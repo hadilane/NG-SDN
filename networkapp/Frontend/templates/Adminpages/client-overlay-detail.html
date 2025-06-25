@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% load static %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="card shadow-sm p-4 rounded-4">
+        <h2 class="mb-4 text-xl font-semibold text-primary">{{ overlay.name }}</h2>
+        
+        <!-- Overlay Details -->
+        <div class="mb-4">
+            <p class="text-muted"><strong>Status:</strong> {{ overlay.status }}</p>
+            <p class="text-muted"><strong>Type:</strong> {{ overlay.type|default:"N/A" }}</p>
+            <p class="text-muted"><strong>Tunnel Mode:</strong> {{ overlay.tunnel_mode|default:"N/A" }}</p>
+            <p class="text-muted"><strong>Description:</strong> {{ overlay.description|default:"No description" }}</p>
+            <p class="text-muted"><strong>Created:</strong> {{ overlay.created_at|date:"Y-m-d H:i" }}</p>
+        </div>
+
+        <!-- Topology Visualization -->
+        <h5 class="text-lg mt-4">Overlay Topology</h5>
+        {% if topology_json.nodes %}
+            <div id="topology-error" class="alert alert-danger" style="display: none;"></div>
+            <div id="network-topology" class="border rounded p-3" style="height: 400px;"></div>
+        {% else %}
+            <p class="text-danger">No valid topology data available for this overlay.</p>
+        {% endif %}
+
+        <!-- Safe JSON script -->
+        {{ topology_json|json_script:"topology-data" }}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://unpkg.com/vis-network@9.1.6/standalone/umd/vis-network.min.js"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const errorDiv = document.getElementById("topology-error");
+        const data = JSON.parse(document.getElementById("topology-data").textContent);
+        console.log("TOPOLOGY DATA:", data);
+
+        if (!data.nodes || !data.links) {
+            errorDiv.textContent = "Invalid topology data.";
+            errorDiv.style.display = "block";
+            return;
+        }
+
+        // Prepare nodes
+        const nodes = new vis.DataSet(data.nodes.map(node => ({
+            id: node.id,
+            label: `${node.name}\n(${node.interface})`,
+            title: `Device: ${node.name}\nInterface: ${node.interface}`,
+            group: "device",
+            shape: "image",
+            image: "{% static 'assets/images/switch-icon.png' %}",
+            color: "#4CAF50", // Green for devices
+            size: 40,
+            font: { size: 14, multi: true }
+        })));
+
+        // Prepare edges
+        const edges = new vis.DataSet(data.links.map((link, idx) => ({
+            id: `overlay_link_${idx}`,
+            from: link.src,
+            to: link.dst,
+            label: "{{ overlay.name }}",
+            color: "#FF5733", // Match admin overlay color
+            group: "overlay",
+            title: `Overlay: {{ overlay.name }}`,
+            dashes: true,
+            width: 4,
+            arrows: { to: { enabled: true, scaleFactor: 0.5 } }
+        })));
+
+        const container = document.getElementById("network-topology");
+        const networkData = { nodes: nodes, edges: edges };
+        const options = {
+            nodes: {
+                shape: "image",
+                size: 40,
+                font: { size: 14, multi: true },
+                borderWidth: 2
+            },
+            edges: {
+                font: { size: 12 },
+                smooth: { type: "continuous" },
+                arrows: { to: { enabled: true, scaleFactor: 0.5 } }
+            },
+            physics: {
+                forceAtlas2Based: {
+                    gravitationalConstant: -100,
+                    centralGravity: 0.005,
+                    springLength: 200
+                },
+                minVelocity: 0.75,
+                solver: "forceAtlas2Based"
+            },
+            interaction: {
+                hover: true,
+                tooltipDelay: 100
+            }
+        };
+
+        try {
+            const network = new vis.Network(container, networkData, options);
+        } catch (error) {
+            errorDiv.textContent = "Failed to render topology: " + error.message;
+            errorDiv.style.display = "block";
+            console.error("Vis-network error:", error);
+        }
+    });
+</script>
+{% endblock %}

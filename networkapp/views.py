@@ -549,16 +549,23 @@ def adminprofile_view(request):
 
 
 @login_required
-@role_required('admin')  # Optional: restrict to admin if needed
+@role_required('admin')  # restrict to admin if needed
 def client_profile_view(request, client_id):
+    # Fetch the user whose profile is being viewed
     client = get_object_or_404(CustomUser, pk=client_id)
-    overlays = client.overlays.all()
-    return render(request, 'OverlayPages/client-profile.html', {
+    overlays = client.overlays.all()  # Assuming a related_name 'overlays'
+
+    # Determine the template based on the current user's role
+    if request.user.is_authenticated and request.user.is_admin():
+        template = 'AdminPages/admin-client-profile.html'  # Admin template
+    else:
+        template = 'OverlayPages/client-profile.html'  # Client template
+
+    return render(request, template, {
         'user': client,
         'overlays': overlays,
         'page_title': f"{client.first_name} {client.last_name}'s Profile"
     })
-
 
 # Overlay section ----------------------------------
 
@@ -583,7 +590,14 @@ def overlays_list(request):
     if date:
         overlays = overlays.filter(created_at__date=date)
 
-    return render(request, 'OverlayPages/overlays-list.html', {
+        # Determine the template based on the current user's role
+    if request.user.is_authenticated and request.user.is_admin():
+        template = 'AdminPages/client-overlay-list.html'  # Admin template
+    else:
+        template = 'OverlayPages/overlays-list.html'  # Client template
+
+
+    return render(request, template, {
         'overlays': overlays,
         'page_title': 'Overlays List'
     })
@@ -641,7 +655,13 @@ def overlay_detail(request, overlay_id):
         else:
             logger.warning("Invalid configuration for overlay %s: src=%s, dst=%s", overlay.id, src_device, dst_device)
 
-    return render(request, 'OverlayPages/overlay-detail.html', {
+    # Determine the template based on the current user's role
+    if request.user.is_authenticated and request.user.is_admin():
+        template = 'AdminPages/client-overlay-detail.html'  # Admin template
+    else:
+        template = 'OverlayPages/overlay-detail.html'  # Client template
+
+    return render(request, template, {
         'overlay': overlay,
         'topology_json': topology_data,
         'page_title': f"Overlay Detail: {overlay.name}"

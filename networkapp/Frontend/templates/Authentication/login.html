@@ -11,13 +11,83 @@
     <link rel="stylesheet" href="{% static 'assets/css/theme1.css' %}"/>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" />
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Montserrat', sans-serif;
+        }
+        .auth {
+            min-height: 100vh;
+            position: relative;
+            display: flex;
+            width: 100%;
+        }
+        .auth_left {
+            width: 50%;
+            background-color: #1e3a8a; /* Dark blue color for the left side */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            position: relative;
+            z-index: 1;
+        }
+        .auth_left .card {
+            width: 800px;
+            max-width: 100%;
+            padding: 90px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        .auth_right {
+            width: 50%;
+            height: 100vh;
+            background-image: url('{% static "assets/images/tech.png" %}');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            position: absolute;
+            top: 0;
+            right: 0;
+            z-index: 0;
+        }
+        .header-brand i {
+            font-size: 2rem;
+            color: #1e3a8a;
+        }
+        .card-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #1e3a8a;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+            text-align: left;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #34495e;
+        }
+        .btn-primary {
+            background-color: #1e3a8a;
+            border-color: #1e3a8a;
+        }
+        .btn-primary:hover {
+            background-color: #152e6f;
+            border-color: #152e6f;
+        }
+    </style>
 </head>
 <body class="font-montserrat">
 
-<div class="auth d-flex justify-content-center align-items-center" style="height: 100vh;">
-    <div class="auth_left" style="width: 600px; max-width: 90%; height: 900px;">
+<div class="auth">
+    <div class="auth_left">
         <div class="card">
-            <div class="text-center mb-2">
+            <div class="text-center mb-4">
                 <a class="header-brand" href="#"><i class="fa fa-network-wired brand-logo"></i></a>
             </div>
             <div class="card-body">
@@ -29,13 +99,12 @@
                     <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
                         {{ message }}
                         <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
+                        <span aria-hidden="true">×</span>
                         </button>
                     </div>
                     {% endfor %}
                 </div>
                 {% endif %}
-
 
                 <form method="post" novalidate>
                     {% csrf_token %}
@@ -48,7 +117,7 @@
                     </div>
                     
                     <div class="form-group">
-                        <a href="{% url 'password_reset' %}" class="float-right small">I forgot password</a>
+                        <a href="{% url 'password_reset' %}" class="float-right small text-danger">I forgot password</a>
                         {{ form.password.label_tag }}
                         {{ form.password }}
                         {{ form.password.errors }}
@@ -66,12 +135,12 @@
                     </div>
                 </form>
             </div>
-            <div class="text-center text-muted">
+            <!-- <div class="text-center text-muted">
                 Don't have an account yet? <a href="{% url 'register' %}">Sign up</a>
-            </div>
+            </div> -->
         </div>        
     </div>
-    <div class="auth_right full_img"></div>
+    <div class="auth_right"></div>
 </div>
 
 <script src="{% static 'assets/bundles/lib.vendor.bundle.js' %}"></script>

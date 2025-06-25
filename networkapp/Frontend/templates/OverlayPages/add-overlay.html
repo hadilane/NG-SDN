@@ -5,122 +5,114 @@
 {% block title %}Dashboard - NG-SDN{% endblock %}
 
 {% block content %}
-
 <div class="section-body mt-3">
-<div class="d-flex justify-content-center align-items-center" style="height: 100vh;">
-    <div class="auth_left" style="width: 900px; max-width: 90%;">
-        <div class="card">
-            <div class="text-center mb-2">
-                <a class="header-brand" href="#"><i class="fa fa-soccer-ball-o brand-logo"></i></a>
+    <div class="min-h-screen flex items-center justify-center py-8 px-4 sm:px-6 lg:px-8" style="background: linear-gradient(to bottom right, #F5F6F5, #FFFFFF, #ECECEC);">
+        <div class="w-full max-w-5xl bg-gradient-to-br from-#87CEEB33 to-gray-100 text-gray-800 shadow-xl rounded-xl overflow-hidden border-2 border-gray-300 transform transition-all duration-300 hover:scale-101 hover:shadow-2xl" style="background: linear-gradient(to bottom right, rgba(135, 206, 235, 0.2), #F8FAFC);">
+            <div class="text-center p-6 bg-#87CEEB1A border-b-2 border-#87CEEB40 relative" style="background-color: rgba(135, 206, 235, 0.1); border-bottom-color: rgba(135, 206, 235, 0.25);">
+                <div class="flex justify-center items-center">
+                    <div class="w-16 h-2 bg-#4A4A4A rounded-full mr-3" style="background-color: #4A4A4A;"></div>
+                    <h5 class="text-3xl font-extrabold tracking-tight text-#4682B4 drop-shadow-sm" style="color: #4682B4;">Overlay Demande</h5>
+                    <div class="w-16 h-2 bg-#4A4A4A rounded-full ml-3" style="background-color: #4A4A4A;"></div>
+                </div>
+                <div class="absolute top-2 right-2 w-10 h-10 bg-#3333334D rounded-full opacity-30 animate-pulse" style="background-color: rgba(51, 51, 51, 0.3);"></div>
             </div>
 
-            <form class="card-body" method="post" enctype="multipart/form-data" novalidate>
+            <form class="card-body p-6" method="post" enctype="multipart/form-data" novalidate>
                 {% csrf_token %}
 
-                <div class="d-flex" style="height: 100%;">
-                    <!-- Left: Manual Section -->
-                    <div style="width: 58%; padding-right: 20px;">
-                        <h4 class="mt-2">Overlay Information</h4>
-                        <div class="row">
-                            <div class="col-sm-12">
-                                <div class="form-group">
-                                    <label for="id_overlay_name">Overlay Name</label>
-                                    <input type="text" name="overlay_name" class="form-control" required>
-                                    {% if form.overlay_name.errors %}
-                                        <div class="text-danger">{{ form.overlay_name.errors }}</div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            <div class="col-sm-12">
-                                <div class="form-group">
-                                    <label for="id_overlay_type">Overlay Type</label>
-                                    <input type="text" name="overlay_type" class="form-control" required>
-                                    {% if form.overlay_type.errors %}
-                                        <div class="text-danger">{{ form.overlay_type.errors }}</div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            <div class="col-sm-12">
-                                <div class="form-group">
-                                    <label for="id_overlay_status">Overlay Status</label>
-                                    <select name="overlay_status" class="form-control" required>
-                                        <option value="Active">Active</option>
-                                        <option value="Inactive">Inactive</option>
-                                    </select>
-                                    {% if form.overlay_status.errors %}
-                                        <div class="text-danger">{{ form.overlay_status.errors }}</div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            <div class="col-sm-12">
-                                <div class="form-group">
-                                    <label for="id_overlay_description">Overlay Description</label>
-                                    <textarea name="overlay_description" class="form-control" rows="3"></textarea>
-                                    {% if form.overlay_description.errors %}
-                                        <div class="text-danger">{{ form.overlay_description.errors }}</div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            <div class="col-sm-12">
-                                <div class="form-group">
-                                    <label for="id_overlay_tunnel_mode">Overlay Tunnel Mode</label>
-                                    <input type="text" name="overlay_tunnel_mode" class="form-control" required>
-                                    {% if form.overlay_tunnel_mode.errors %}
-                                        <div class="text-danger">{{ form.overlay_tunnel_mode.errors }}</div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            <div class="col-sm-12">
-                                <h5>Overlay Segments</h5>
-                                <div id="segments-container">
-                                    <div class="segment-container">
-                                        <div class="segment-fields">
-                                            <input type="text" name="device_name[]" class="form-control" placeholder="Device Name" required>
-                                            <input type="text" name="device_LAN_interface[]" class="form-control" placeholder="Device LAN Interface" required>
-                                            <button type="button" class="btn btn-danger remove-segment-btn">Remove</button>
-                                        </div>
-                                    </div>
-                                </div>
-                                <button type="button" id="add-segment-btn" class="btn btn-primary mt-2">Add Segment</button>
-                            </div>
-                            <div class="col-sm-12">
-                                <div class="form-footer mt-2">
-                                    <button type="submit" name="submit_form" class="btn btn-success w-100">Submit Overlay Demand (Manual Entry)</button>
-                                </div>
-                            </div>
+
+                
+
+                <!-- JSON Section (Full Width) -->
+                <div class="w-full p-4 bg-white rounded-xl shadow-md" style="background: linear-gradient(to bottom, rgba(255, 255, 255, 0.9), rgba(248, 250, 252, 0.9));">
+                    <h4 class="text-2xl font-semibold text-#4682B4 mb-4 text-center" style="color: #4682B4;">Upload JSON</h4>
+                    <div class="grid grid-cols-1 gap-3">
+                        <div class="form-group flex flex-col items-center">
+                            <label for="{{ upload_form.json_file.id_for_label }}" class="text-lg text-#4682B4 font-medium mb-2" style="color: #4682B4;">{{ upload_form.json_file.label }}</label>
+                            <input type="file" name="json_file" class="form-control p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-#4682B4 w-full" id="{{ upload_form.json_file.id_for_label }}">
+                            {% if upload_form.json_file.errors %}
+                                <div class="text-red-600 text-sm mt-1">{{ upload_form.json_file.errors }}</div>
+                            {% endif %}
                         </div>
-                    </div>
-
-                    <!-- Center Divider -->
-                    <div style="width: 14%; display: flex; flex-direction: column; align-items: center; position: relative;">
-                        <span style="position: absolute; top: -5px; background: white; padding: 0 8px;">OR</span>
-                        <div style="border-left: 2px solid #ccc; height: 100%;"></div>
-                    </div>
-
-                    <!-- Right: JSON Section -->
-                    <div style="width: 58%; padding-left: 20px;">
-                        <h4 class="mt-2">Upload JSON</h4>
-                        <div class="row">
-                            <div class="col-sm-12">
-                                <div class="form-group">
-                                    {{ upload_form.json_file.label_tag }}
-                                    {{ upload_form.json_file }}
-                                    {{ upload_form.json_file.errors }}
-                                </div>
-                            </div>
-                            <div class="col-sm-12">
-                                <div class="form-footer mt-2">
-                                    <button type="submit" name="submit_json" class="btn btn-warning w-100">Submit JSON Demand</button>
-                                </div>
-                            </div>
+                        <div class="form-footer mt-4">
+                            <button type="submit" name="submit_json" class="btn btn-warning p-2 rounded-lg text-white w-full" style="background-color: #4682B4; border-color: #4682B4; transition: background-color 0.3s;" onmouseover="this.style.backgroundColor='#1f496c';" onmouseout="this.style.backgroundColor='#4682B4';">Submit JSON Demand</button>
                         </div>
                     </div>
                 </div>
+<br>
+                 <!-- Styled OR Divider with Lines on Sides -->
+                <div class="w-full flex items-center justify-center py-6 mb-6">
+                    <div class="flex-1 h-1 bg-gradient-to-r from-rgba(70, 130, 180, 1) to-rgba(135, 206, 235, 1) rounded-full shadow-lg" style="box-shadow: 0 2px 4px rgba(70, 130, 180, 0.3); background-color: #4682B4;"></div>
+                    <span class="mx-4 text-white text-xl font-bold px-6 py-1 bg-#4682B4 rounded-full shadow-md" style="background-color: #4682B4; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2); z-index: 1;">OR</span>
+                    <div class="flex-1 h-1 bg-gradient-to-r from-rgba(70, 130, 180, 1) to-rgba(135, 206, 235, 1) rounded-full shadow-lg" style="box-shadow: 0 2px 4px rgba(70, 130, 180, 0.3); background-color: #4682B4;"></div>
+                </div>
+
+                <!-- Manual Section (Full Width) -->
+                <div class="w-full p-4 bg-white rounded-xl shadow-md mb-6" style="background: linear-gradient(to bottom, rgba(255, 255, 255, 0.9), rgba(248, 250, 252, 0.9));">
+                    <h4 class="text-2xl font-semibold text-#4682B4 mb-4 text-center" style="color: #4682B4;">Overlay Information</h4>
+                    <div class="grid grid-cols-1 gap-3">
+                        <div class="form-group">
+                            <label for="id_overlay_name" class="text-lg text-#4682B4 font-medium" style="color: #4682B4;">Overlay Name</label>
+                            <input type="text" name="overlay_name" class="form-control p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-#4682B4" required>
+                            {% if form.overlay_name.errors %}
+                                <div class="text-red-600 text-sm mt-1">{{ form.overlay_name.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="form-group">
+                            <label for="id_overlay_type" class="text-lg text-#4682B4 font-medium" style="color: #4682B4;">Overlay Type</label>
+                            <input type="text" name="overlay_type" class="form-control p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-#4682B4" required>
+                            {% if form.overlay_type.errors %}
+                                <div class="text-red-600 text-sm mt-1">{{ form.overlay_type.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="form-group">
+                            <label for="id_overlay_status" class="text-lg text-#4682B4 font-medium" style="color: #4682B4;">Overlay Status</label>
+                            <select name="overlay_status" class="form-control p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-#4682B4" required>
+                                <option value="Active">Active</option>
+                                <option value="Inactive">Inactive</option>
+                            </select>
+                            {% if form.overlay_status.errors %}
+                                <div class="text-red-600 text-sm mt-1">{{ form.overlay_status.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="form-group">
+                            <label for="id_overlay_description" class="text-lg text-#4682B4 font-medium" style="color: #4682B4;">Overlay Description</label>
+                            <textarea name="overlay_description" class="form-control p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-#4682B4" rows="3"></textarea>
+                            {% if form.overlay_description.errors %}
+                                <div class="text-red-600 text-sm mt-1">{{ form.overlay_description.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="form-group">
+                            <label for="id_overlay_tunnel_mode" class="text-lg text-#4682B4 font-medium" style="color: #4682B4;">Overlay Tunnel Mode</label>
+                            <input type="text" name="overlay_tunnel_mode" class="form-control p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-#4682B4" required>
+                            {% if form.overlay_tunnel_mode.errors %}
+                                <div class="text-red-600 text-sm mt-1">{{ form.overlay_tunnel_mode.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="form-group">
+                            <h5 class="text-xl text-#4682B4 font-semibold mb-2" style="color: #4682B4;">Overlay Segments</h5>
+                            <div id="segments-container">
+                                <div class="segment-container">
+                                    <div class="segment-fields flex gap-2 mb-2">
+                                        <input type="text" name="device_name[]" class="form-control p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-#4682B4" placeholder="Device Name" required>
+                                        <input type="text" name="device_LAN_interface[]" class="form-control p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-#4682B4" placeholder="Device LAN Interface" required>
+                                        <button type="button" class="btn btn-danger p-2 rounded-lg text-white remove-segment-btn" style="background-color: #DC3545; border-color: #DC3545; transition: background-color 0.3s;" onmouseover="this.style.backgroundColor='#C82333';" onmouseout="this.style.backgroundColor='#DC3545';">Remove</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="button" id="add-segment-btn" class="btn btn-primary p-2 rounded-lg text-white mt-2" style="background-color: #4682B4; border-color: #4682B4; transition: background-color 0.3s;" onmouseover="this.style.backgroundColor='#4169E1';" onmouseout="this.style.backgroundColor='#4682B4';">Add Segment</button>
+                        </div>
+                        <div class="form-footer mt-4">
+                            <button type="submit" name="submit_form" class="btn btn-success p-2 rounded-lg text-white w-full" style="background-color: #4682B4; border-color: #4682B4; transition: background-color 0.3s;" onmouseover="this.style.backgroundColor='#218838';" onmouseout="this.style.backgroundColor='#28A745';">Submit Overlay Demand (Manual Entry)</button>
+                        </div>
+                    </div>
+                </div>
+
+                
             </form>
         </div>
     </div>
     <div class="auth_right full_img"></div>
-</div>
 </div>
 
 {% endblock %}
@@ -134,15 +126,15 @@
         const newSegment = document.createElement('div');
         newSegment.className = 'segment-container';
         newSegment.innerHTML = `
-            <div class="segment-fields">
-                <input type="text" name="device_name[]" class="form-control" placeholder="Device Name" required>
-                <input type="text" name="device_LAN_interface[]" class="form-control" placeholder="Device LAN Interface" required>
-                <button type="button" class="btn btn-danger remove-segment-btn">Remove</button>
+            <div class="segment-fields flex gap-2 mb-2">
+                <input type="text" name="device_name[]" class="form-control p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-#4682B4" placeholder="Device Name" required>
+                <input type="text" name="device_LAN_interface[]" class="form-control p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-#4682B4" placeholder="Device LAN Interface" required>
+                <button type="button" class="btn btn-danger p-2 rounded-lg text-white remove-segment-btn" style="background-color: #DC3545; border-color: #DC3545; transition: background-color 0.3s;" onmouseover="this.style.backgroundColor='#C82333';" onmouseout="this.style.backgroundColor='#DC3545';">Remove</button>
             </div>`;
         container.appendChild(newSegment);
     });
 
-    document.addEventListener('click', function(e) {
+    document.getElementById('segments-container').addEventListener('click', function(e) {
         if (e.target.classList.contains('remove-segment-btn')) {
             const container = document.getElementById('segments-container');
             if (container.children.length > 1) {
@@ -151,5 +143,4 @@
         }
     });
 </script>
-
 {% endblock %}

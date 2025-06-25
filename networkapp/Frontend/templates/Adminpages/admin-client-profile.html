@@ -1,4 +1,4 @@
-{% extends "home.html" %}
+{% extends "base.html" %}
 {% load static %}
 
 {% block title %}Profile - NG-SDN{% endblock %}
@@ -30,7 +30,7 @@
                 <span class="text-gray-600 text-sm">Status</span>
             </div>
             <div class="text-center p-3 bg-white rounded-xl border-2 border-gray-200 hover:bg-gray-100 transition duration-300 transform hover:-translate-y-1">
-                <i class="fas fa-user text-2xl text-#4682B4 mb-1" style="color: #4682B4;"></i>
+                <i class="fas fa-user-shield text-2xl text-#4682B4 mb-1" style="color: #4682B4;"></i>
                 <h6 class="text-2xl font-extrabold text-#4682B4" style="color: #4682B4;">{{ user.is_staff|yesno:"Staff,Non-staff" }}</h6>
                 <span class="text-gray-600 text-sm">Role</span>
             </div>
@@ -73,9 +73,8 @@
         </div>
 
         <!-- Buttons -->
-        <div class="p-6 bg-gray-50 flex justify-center gap-4">
+        <div class="p-6 bg-gray-50 flex justify-center">
             <a href="{% url 'overlays_list' %}" class="px-6 py-3 bg-#4682B4 text-white font-extrabold text-base rounded-xl hover:bg-#4169E1 focus:outline-none focus:ring-4 focus:ring-#4682B4 focus:ring-opacity-70 transition duration-300 transform hover:-translate-y-1" style="background-color: #4682B4; hover:bg-color: #4169E1; focus:ring-color: #4682B4;">View My Overlays</a>
-            <a href="javascript:void(0);" class="px-6 py-3 bg-#4682B4 text-white font-extrabold text-base rounded-xl hover:bg-#4169E1 focus:outline-none focus:ring-4 focus:ring-#4682B4 focus:ring-opacity-70 transition duration-300 transform hover:-translate-y-1" style="background-color: #4682B4; hover:bg-color: #4169E1; focus:ring-color: #4682B4;">Edit Profile</a>
         </div>
     </div>
 </div>
