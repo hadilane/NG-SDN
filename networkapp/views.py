@@ -25,7 +25,6 @@ from django.urls import reverse
 from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes
 from django.views.generic import FormView
-from django.conf import settings
 from django.urls import reverse_lazy
 from .models import CustomUser
 from django.shortcuts import render, redirect, get_object_or_404
@@ -69,8 +68,27 @@ from .models import Notification, DemandeOverlay, Overlay, CustomUser, UnderlayN
 import paramiko
 import os
 from django.core.files.storage import FileSystemStorage
+from django.shortcuts import render
+from django.http import FileResponse, HttpResponse
+from django.contrib.auth.decorators import login_required
+from .decorators import role_required
+from influxdb import InfluxDBClient
+import subprocess
+import os
 
-
+import uuid
+from django.http import FileResponse
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, Spacer, Frame
+from reportlab.lib import colors
+from django.contrib.auth.decorators import login_required
+from django.conf import settings
+import tempfile
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib.units import inch
+from reportlab.platypus import PageBreak, PageTemplate, BaseDocTemplate
+from reportlab.platypus.tableofcontents import TableOfContents
+from reportlab.platypus import NextPageTemplate
 
 logger = logging.getLogger(__name__)  # for auditing
 
@@ -139,6 +157,7 @@ def dashboard(request):
         })
 
     context = {
+        'VM_IP_ADDRESS': settings.VM_IP_ADDRESS,
         'demandes': demandes,
         'user': request.user,
         'overlay_info': overlay_info,
@@ -164,9 +183,9 @@ def dijkstra(graph, start, end):
                 heappush(queue, (cost + 1, neighbor, path + [neighbor]))
     return []
 
+#----------------------Connection with the controller ONOS-------------------------------------------------
 
-
-ONOS_URL = "http://193.194.66.123:8181/onos/v1"  # ONOS IP
+ONOS_URL = f"http://{settings.VM_IP_ADDRESS}:8181/onos/v1"  # ONOS IP
 ONOS_AUTH = HTTPBasicAuth("onos", "rocks")
 REQUEST_TIMEOUT = 30  # seconds
 
@@ -358,6 +377,10 @@ def get_onos_topology(request):
         logger.error("Unexpected error in get_onos_topology: %s", str(e), exc_info=True)
         return JsonResponse({"error": f"Internal server error: {str(e)}"}, status=500)
   
+#---------------------------------------------------------------------------------------------------
+
+
+
 
 # @login_required
 # @role_required('admin')
@@ -1152,6 +1175,166 @@ def delete_demande(request, demande_id):
         return redirect('liste_demandes_client')
     
     return redirect('liste_demandes_client')
+
+
+
+
+
+
+   
+@login_required
+@role_required('admin')
+def generate_telemetry_report(request):
+    # Connect to InfluxDB using settings
+    client = InfluxDBClient(
+        host=settings.INFLUXDB_CONFIG['HOST'],
+        port=settings.INFLUXDB_CONFIG['PORT'],
+        username=settings.INFLUXDB_CONFIG['USERNAME'],
+        password=settings.INFLUXDB_CONFIG['PASSWORD'],
+        database=settings.INFLUXDB_CONFIG['DATABASE']
+    )
+    pdf_path = None
+    try:
+        # Query raw data from each measurement
+        measurements = ['flow_stats', 'link_latency', 'queue_occupancy', 'switch_stats']
+        all_data = {}
+        for measurement in measurements:
+            query = f'SELECT * FROM {measurement} LIMIT 50'
+            result = client.query(query)
+            all_data[measurement] = list(result.get_points()) if result.get_points() else [['No data available for ' + measurement + '.']]
+
+        # Prepare data for the report
+        report_data = {}
+        for measurement, points in all_data.items():
+            if measurement == 'flow_stats':
+                report_data[measurement] = [['Time', 'DSCP', 'Dst IP', 'Dst Port', 'Flow Label', 'Latency', 'Path', 'Protocol', 'Size', 'Src IP', 'Src Port']] + [
+                    [str(p['time'])[:10] if 'time' in p else 'N/A', p.get('dscp', 'N/A'), p.get('dst_ip', 'N/A'), p.get('dst_port', 'N/A'), p.get('flow_label', 'N/A'),
+                     f"{p.get('latency', 'N/A'):.2f}" if p.get('latency') is not None else 'N/A', p.get('path', 'N/A'),
+                     p.get('protocol', 'N/A'), p.get('size', 'N/A'), p.get('src_ip', 'N/A'), p.get('src_port', 'N/A')]
+                    for p in points
+                ]
+            elif measurement == 'link_latency':
+                report_data[measurement] = [['Time', 'Egress Port ID', 'Egress Switch ID', 'Ingress Port ID', 'Ingress Switch ID', 'Latency']] + [
+                    [str(p['time'])[:10] if 'time' in p else 'N/A', p.get('egress_port_id', 'N/A'), p.get('egress_switch_id', 'N/A'), p.get('ingress_port_id', 'N/A'),
+                     p.get('ingress_switch_id', 'N/A'), f"{p.get('latency', 'N/A'):.2f}" if p.get('latency') is not None else 'N/A']
+                    for p in points
+                ]
+            elif measurement == 'queue_occupancy':
+                report_data[measurement] = [['Time', 'Queue', 'Queue ID', 'Switch ID']] + [
+                    [str(p['time'])[:10] if 'time' in p else 'N/A', p.get('queue', 'N/A'), p.get('queue_id', 'N/A'), p.get('switch_id', 'N/A')]
+                    for p in points
+                ]
+            elif measurement == 'switch_stats':
+                report_data[measurement] = [['Time', 'DSCP', 'Dst IP', 'Flow Label', 'Latency', 'Size', 'Src IP', 'Switch ID']] + [
+                    [str(p['time'])[:10] if 'time' in p else 'N/A', p.get('dscp', 'N/A'), p.get('dst_ip', 'N/A'), p.get('flow_label', 'N/A'),
+                     f"{p.get('latency', 'N/A'):.2f}" if p.get('latency') is not None else 'N/A', p.get('size', 'N/A'),
+                     p.get('src_ip', 'N/A'), p.get('switch_id', 'N/A')]
+                    for p in points
+                ]
+        print("Report data:", {k: v[:2] for k, v in report_data.items()})  # Debug first two rows per table
+
+        # Define ParagraphStyle
+        title_style = ParagraphStyle(
+            name='TitleStyle',
+            fontName='Times-Roman',
+            fontSize=16,
+            alignment=1,
+            spaceAfter=10
+        )
+        overview_style = ParagraphStyle(
+            name='OverviewStyle',
+            fontName='Times-Roman',
+            fontSize=10,
+            alignment=0,
+            spaceAfter=6
+        )
+        styles = getSampleStyleSheet()
+        normal_style = styles['Normal']
+
+        # Generate PDF using reportlab
+        with tempfile.NamedTemporaryFile(mode='w+b', suffix='.pdf', delete=False) as pdf_file:
+            pdf_path = pdf_file.name
+            doc = BaseDocTemplate(pdf_path, pagesize=letter, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36)
+            
+            def add_page_number(canvas, doc):
+                canvas.saveState()
+                canvas.setFont('Times-Roman', 10)
+                page_num = canvas.getPageNumber()
+                text = f"Page {page_num}"
+                canvas.drawRightString(558, 20, text)  # 558 = 612 - 36 - 18 (approx half char width)
+                canvas.restoreState()
+
+            # Define frame and page template
+            frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id='normal')
+            doc.addPageTemplates([
+                PageTemplate(id='normal', frames=frame, onPage=add_page_number),
+            ])
+
+            elements = []
+
+            # Title and overview
+            elements.append(Paragraph("NG-SDN Telemetry Report", title_style))
+            elements.append(Paragraph("Overview: All Measurements Data", overview_style))
+            elements.append(Spacer(1, 10))
+
+            # Add tables for each measurement with explanations
+            for measurement in measurements:
+                elements.append(Paragraph(f"{measurement} Data", overview_style))
+                if measurement == 'flow_stats':
+                    elements.append(Paragraph("Explanation: Contains flow statistics including latency and network paths.", normal_style))
+                elif measurement == 'link_latency':
+                    elements.append(Paragraph("Explanation: Details latency between ingress and egress switch ports.", normal_style))
+                elif measurement == 'queue_occupancy':
+                    elements.append(Paragraph("Explanation: Shows queue occupancy data for switches.", normal_style))
+                elif measurement == 'switch_stats':
+                    elements.append(Paragraph("Explanation: Provides switch-level statistics including latency.", normal_style))
+                table_data = report_data[measurement]
+                num_cols = len(table_data[0])
+                col_width = (612 - 72) / num_cols if num_cols > 1 else 150
+                table = Table(table_data, colWidths=[col_width] * num_cols if num_cols > 1 else [150], repeatRows=1)
+                table.setStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Times-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, 0), 10),
+                    ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+                    ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                    ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
+                    ('FONTSIZE', (0, 1), (-1, -1), 8),
+                    ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                    ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 2),
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 2),
+                ])
+                table.hAlign = 'LEFT'
+                elements.append(table)
+                elements.append(Spacer(1, 10))
+
+            # Build PDF
+            doc.build(elements)
+
+        # Prepare file response for download
+        with open(pdf_path, 'rb') as pdf_file:
+            response = HttpResponse(pdf_file.read(), content_type='application/pdf')
+            response['Content-Disposition'] = 'attachment; filename="telemetry_report.pdf"'
+            response['Content-Length'] = os.path.getsize(pdf_path)
+
+        return response
+    except Exception as e:
+        if pdf_path and os.path.exists(pdf_path):
+            try:
+                os.unlink(pdf_path)
+            except Exception:
+                pass  # Ignore cleanup failure if it occurs
+        raise Exception(f"Failed to generate telemetry report: {str(e)}")
+    finally:
+        if pdf_path and os.path.exists(pdf_path):
+            try:
+                os.unlink(pdf_path)
+            except Exception:
+                pass  # Ensure cleanup attempt, but don’t fail the response
+
 
 # @staff_member_required
 # def valider_demande_overlay(request, demande_id):

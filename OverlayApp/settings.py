@@ -65,6 +65,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'networkapp.context_processors.admin_notifications',
+              
             ],
         },
     },
@@ -93,6 +94,20 @@ DATABASES = {
 #         'NAME': BASE_DIR / 'db.sqlite3',
 #     }
 # }
+
+
+# VM IP Address (used for ONOS or other VM-related endpoints)
+VM_IP_ADDRESS = '193.194.66.123'
+
+
+# InfluxDB Configuration
+INFLUXDB_CONFIG = {
+    'HOST': VM_IP_ADDRESS,
+    'PORT': 8086,
+    'USERNAME': 'admin',
+    'PASSWORD': 'admin',
+    'DATABASE': 'int',
+}
 
 
 # Password validation

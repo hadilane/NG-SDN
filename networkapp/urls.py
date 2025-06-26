@@ -40,4 +40,5 @@ urlpatterns = [
     path('list/demandes/<int:demande_id>/rejeter/', views.rejeter_demande_overlay, name='rejeter_demande'),
     path('notifications/read/', views.mark_notifications_read, name='mark_notifications_read'),
     path('demandes/delete/<int:demande_id>/', views.delete_demande, name='delete_demande'),
+    path('generate-telemetry-report/', views.generate_telemetry_report, name='generate_telemetry_report'),
 ]
