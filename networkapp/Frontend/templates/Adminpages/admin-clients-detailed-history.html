@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Detailed History - NG-SDN{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient-to-br from-gray-100 via-white to-gray-200 flex items-center justify-center py-8 px-4 sm:px-6 lg:px-8" style="background: linear-gradient(to bottom right, #F5F6F5, #FFFFFF, #ECECEC);">
+    <div class="w-full max-w-4xl bg-gradient-to-br from-#87CEEB33 to-gray-100 text-gray-800 shadow-xl rounded-2xl overflow-hidden border-2 border-gray-300 transform transition-all duration-300 hover:scale-101 hover:shadow-2xl" style="background: linear-gradient(to bottom right, rgba(135, 206, 235, 0.2), #F8FAFC);">
+        <!-- Header with Name -->
+        <div class="p-6 bg-#87CEEB1A border-b-2 border-#87CEEB40 relative" style="background-color: rgba(135, 206, 235, 0.1); border-bottom-color: rgba(135, 206, 235, 0.25);">
+            <div class="flex justify-center items-center">
+                <h5 class="text-3xl font-extrabold tracking-tight text-#4682B4 drop-shadow-sm" style="color: #4682B4;">{{ user.username }}'s Detailed History</h5>
+            </div>
+        </div>
+
+        <!-- Activity History -->
+        <div class="p-6 bg-gray-50">
+            <div class="timeline">
+                {% if activities %}
+                    {% for activity in activities %}
+                        <div class="timeline-item mb-4">
+                            <div class="timeline-icon" style="background-color: #A3BFFA;"></div>
+                            <div class="timeline-content" style="border-left: 2px solid #E5E7EB; border-radius: 0 5px 5px 0; padding: 10px; color: #374151;">
+                                <p><strong>Activity:</strong> {{ activity.description }}</p>
+                                <p><strong>Date & Time:</strong> {{ activity.date|date:"Y-m-d H:i" }}</p>
+                            </div>
+                        </div>
+                    {% empty %}
+                        <div class="timeline-item mb-4">
+                            <div class="timeline-icon" style="background-color: #A3BFFA;"></div>
+                            <div class="timeline-content" style="border-left: 2px solid #E5E7EB; border-radius: 0 5px 5px 0; padding: 10px; color: #374151;">
+                                <p>No activity history available.</p>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="timeline-item mb-4">
+                        <div class="timeline-icon" style="background-color: #A3BFFA;"></div>
+                        <div class="timeline-content" style="border-left: 2px solid #E5E7EB; border-radius: 0 5px 5px 0; padding: 10px; color: #374151;">
+                            <p>No activity history available.</p>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Back Button -->
+        <div class="p-6 bg-gray-50 flex justify-center">
+            <a href="{% url 'client_profile' user.id %}" class="px-6 py-3 bg-#A3BFFA text-#374151 font-extrabold text-base rounded-xl hover:bg-#8FACF7 focus:outline-none focus:ring-4 focus:ring-#A3BFFA focus:ring-opacity-70 transition duration-300 transform hover:-translate-y-1" style="background-color: #3b91b0; hover:bg-color: #8FACF7; focus:ring-color: #A3BFFA;">Back to Profile</a>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Timeline styling */
+    .timeline {
+        position: relative;
+        padding-left: 30px;
+    }
+    .timeline-item {
+        position: relative;
+    }
+    .timeline-icon {
+        position: absolute;
+        left: -30px;
+        top: 5px;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background-color: #A3BFFA; /* Light blue */
+    }
+    .timeline-content {
+        padding: 10px;
+        border-left: 2px solid #E5E7EB; /* Light gray */
+        border-radius: 0 5px 5px 0;
+        color: #374151;
+    }
+</style>
+{% endblock %}

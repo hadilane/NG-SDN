@@ -1,5 +1,4 @@
 {% extends "base.html" %}
-
 {% load static %}
 
 {% block title %}Dashboard - NG-SDN{% endblock %}
@@ -47,14 +46,91 @@
             </div>
         </div>
 
-       
+         <!-- Monitoring Network Section -->
+        <div class="row clearfix mb-4">
+            <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-admin-primary text-white">
+                        <h3 class="card-title">Monitoring</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <a href="http://{{ VM_IP_ADDRESS }}:3000" target="_blank" class="btn btn-admin-primary btn-block px-6 py-4 text-lg font-extrabold rounded-xl shadow-md hover:scale-105 hover:shadow-lg transition duration-300" style="background: linear-gradient(to bottom right, #4682B4, #4682B4); color: #FFFFFF;">
+                                    Link to Grafana
+                                </a>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <a href="{% url 'generate_telemetry_report' %}" class="btn btn-admin-secondary btn-block px-6 py-4 text-lg font-extrabold rounded-xl shadow-md hover:scale-105 hover:shadow-lg transition duration-300" style="background: linear-gradient(to bottom right, rgba(229, 231, 235, 0.7), #E5E7EB); color: #374151;">
+                                    Telemetry Report
+                                </a>
+                            </div>
+                        </div>
+                       <h4 class="mt-4 text-admin-secondary">Client Statistics</h4>
+                       <br>
+                        <div class="row mb-4">
+                            <div class="col-md-3 col-sm-6 mb-3">
+                                <div class="text-center p-3 bg-white rounded-xl border-2 border-gray-200 hover:bg-gray-100 transition duration-300 transform hover:-translate-y-1">
+                                    <i class="fas fa-users text-2xl text-#4682B4 mb-1" style="color: #4682B4;"></i>
+                                    <h5 class="card-title">Total Clients</h5>
+                                    <h3 class="card-text text-2xl font-extrabold text-#4682B4" style="color: #4682B4;">{{ total_clients }}</h3>
+                                </div>
+                            </div>
+                            <div class="col-md-3 col-sm-6 mb-3">
+                                <div class="text-center p-3 bg-white rounded-xl border-2 border-gray-200 hover:bg-gray-100 transition duration-300 transform hover:-translate-y-1">
+                                    <i class="fas fa-check-circle text-2xl text-#4682B4 mb-1" style="color: #4682B4;"></i>
+                                    <h5 class="card-title">Active Clients</h5>
+                                    <h3 class="card-text text-2xl font-extrabold text-#4682B4" style="color: #4682B4;">{{ active_clients }}</h3>
+                                </div>
+                            </div>
+                            <div class="col-md-3 col-sm-6 mb-3">
+                                <div class="text-center p-3 bg-white rounded-xl border-2 border-gray-200 hover:bg-gray-100 transition duration-300 transform hover:-translate-y-1">
+                                    <i class="fas fa-layer-group text-2xl text-#4682B4 mb-1" style="color: #4682B4;"></i>
+                                    <h5 class="card-title">Total Overlays</h5>
+                                    <h3 class="card-text text-2xl font-extrabold text-#4682B4" style="color: #4682B4;">{{ total_overlays }}</h3>
+                                </div>
+                            </div>
+                            <div class="col-md-3 col-sm-6 mb-3">
+                                <div class="text-center p-3 bg-white rounded-xl border-2 border-gray-200 hover:bg-gray-100 transition duration-300 transform hover:-translate-y-1">
+                                    <i class="fas fa-chart-bar text-2xl text-#4682B4 mb-1" style="color: #4682B4;"></i>
+                                    <h5 class="card-title">Avg Overlays/User</h5>
+                                    <h3 class="card-text text-2xl font-extrabold text-#4682B4" style="color: #4682B4;">{{ avg_overlays_per_user|floatformat:1 }}</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- <h5 class="mt-4 mb-3 text-admin-secondary">Overlays per User</h5>
+                        {% if overlays_per_user %}
+                            {% for user_username, count in overlays_per_user.items %}
+                                <div class="card mb-4 activity-card">
+                                    <div class="card-header bg-admin-info text-white">
+                                        <h5 class="mb-0">{{ user_username }}</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="timeline">
+                                            <div class="timeline-item">
+                                                <div class="timeline-icon bg-admin-primary"></div>
+                                                <div class="timeline-content">
+                                                    <p class="text-admin-text"><strong>Number of Overlays:</strong> {{ count }}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <p class="text-admin-text">No overlay data available.</p>
+                        {% endif %} -->
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <!-- Network Topology and Topology Legend and Details -->
         <div class="row clearfix mt-4">
             <!-- Network Topology -->
             <div class="col-lg-6 col-12 mb-4">
                 <div class="card h-100">
-                    <div class="card-header">
+                    <div class="card-header bg-admin-primary text-white">
                         <h3 class="card-title">Network Topology</h3>
                     </div>
                     <div class="card-body">
@@ -66,7 +142,7 @@
             <!-- Topology Legend and Details -->
             <div class="col-lg-6 col-12 mb-4">
                 <div class="card h-100">
-                    <div class="card-header">
+                    <div class="card-header bg-admin-primary text-white">
                         <h3 class="card-title">Topology Legend and Details</h3>
                     </div>
                     <div class="card-body">
@@ -126,24 +202,7 @@
             </div>
         </div>
 
-         <!-- Monitoring Network Section -->
-        <div class="row clearfix mb-4">
-            <div class="col-12">
-                <div class="card shadow-sm">
-                    <div class="card-header">
-                        <h3 class="card-title">Monitoring Network</h3>
-                    </div>
-                    <div class="card-body">
-                        <a href="http://{{ VM_IP_ADDRESS }}:3000" target="_blank" class="btn btn-primary mr-2">
-                            Link to Grafana
-                        </a>
-                         <a href="{% url 'generate_telemetry_report' %}" class="btn btn-secondary">
-                            Telemetry Report
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
+       
     </div>
 </div>
 
@@ -155,14 +214,143 @@
 }
 .card.h-100 .card-body {
     flex-grow: 1;
-    overflow-y: auto; /* Allow scrolling if content overflows */
+    overflow-y: auto;
 }
 
 /* Adjust topology container for smaller screens */
 @media (max-width: 991.98px) {
     #network-topology {
-        height: 400px !important; /* Smaller height on mobile */
+        height: 400px !important;
     }
+}
+
+/* Admin theme colors (only two light colors) */
+.bg-admin-primary { background-color: #4682B4; } /* Steel blue */
+.bg-admin-secondary { background-color: #E5E7EB; color: #374151; } /* Light gray */
+.bg-admin-accent { background-color: #E5E7EB; } /* Light gray for accents */
+.bg-admin-info { background-color: #4682B4; } /* Steel blue */
+.bg-admin-success { background-color: #4682B4; } /* Steel blue */
+.bg-admin-warning { background-color: #E5E7EB; } /* Light gray */
+.text-admin-text { color: #374151; } /* Dark gray for text */
+.text-admin-secondary { color: #6B7280; } /* Slate gray for secondary text */
+
+/* Stat card styling */
+.stat-card {
+    border: none;
+    border-radius: 10px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+.stat-card .card-body {
+    padding: 20px;
+}
+
+/* Activity card styling */
+.activity-card {
+    border: none;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.activity-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+.activity-card .card-header {
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+    padding: 10px;
+}
+
+.activity-card .card-body {
+    padding: 15px;
+    background-color: #F9FAFB;
+}
+
+/* Timeline styling */
+.timeline {
+    position: relative;
+    padding-left: 30px;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.timeline-icon {
+    position: absolute;
+    left: -30px;
+    top: 0;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background-color: #4682B4; /* Steel blue */
+}
+
+.timeline-content {
+    padding: 10px;
+    border-left: 2px solid #E5E7EB; /* Light gray */
+    border-radius: 0 5px 5px 0;
+}
+
+.badge-success {
+    background-color: #A3BFFA; /* Light blue */
+    color: #374151;
+}
+
+.badge-danger {
+    background-color: #E5E7EB; /* Light gray */
+    color: #374151;
+}
+
+.btn-admin-primary {
+    background: linear-gradient(to bottom right, rgba(135, 206, 235, 0.4), #4682B4);
+    border-color: #4682B4;
+    color: #FFFFFF;
+    padding: 1rem 2.5rem;
+    font-size: 1.25rem;
+    font-weight: bold;
+    border-radius: 0.75rem;
+    box-shadow: 0 4px 8px rgba(70, 130, 180, 0.3);
+    transition: transform 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
+}
+
+.btn-admin-primary:hover {
+    background: linear-gradient(to bottom right, rgba(135, 206, 235, 0.6), #4169E1);
+    transform: scale(1.05);
+    box-shadow: 0 6px 12px rgba(70, 130, 180, 0.4);
+}
+
+.btn-admin-secondary {
+    background: linear-gradient(to bottom right, rgba(229, 231, 235, 0.7), #E5E7EB);
+    border-color: #E5E7EB;
+    color: #374151;
+    padding: 1rem 2.5rem;
+    font-size: 1.25rem;
+    font-weight: bold;
+    border-radius: 0.75rem;
+    box-shadow: 0 4px 8px rgba(229, 231, 235, 0.3);
+    transition: transform 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
+}
+
+.btn-admin-secondary:hover {
+    background: linear-gradient(to bottom right, rgba(209, 213, 219, 0.8), #D1D5DB);
+    transform: scale(1.05);
+    box-shadow: 0 6px 12px rgba(229, 231, 235, 0.4);
+}
+
+.btn-block {
+    display: block;
+    width: 100%;
 }
 </style>
 

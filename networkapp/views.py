@@ -1,6 +1,6 @@
 
 from datetime import timezone
-
+from django.db.models import Count
 import requests
 from .models import Overlay
 from .onos_api import get_topology
@@ -122,7 +122,6 @@ def view_topology(request):
 def dashboard(request):
     demandes = DemandeOverlay.objects.all()[:5]
     
-    
     # Fetch overlays and their underlay paths
     overlay_colors = ["#FF5733", "#33FF57", "#3357FF", "#FF33A1", "#A133FF"]
     if request.user.role == 'admin':
@@ -148,7 +147,7 @@ def dashboard(request):
         overlay_info.append({
             'name': overlay.name,
             'color': overlay_colors[idx % len(overlay_colors)],
-            'user_email': overlay.user.email,
+            'user_username': overlay.user.username,
             'src_device': src_device,
             'src_interface': src_interface,
             'dst_device': dst_device,
@@ -156,17 +155,87 @@ def dashboard(request):
             'path': " → ".join(path) if path else "No path",
         })
 
+    # Client Statistics
+    clients = CustomUser.objects.filter(role='client')  # Assume clients are users with role='client'
+    total_clients = clients.count()
+    active_clients = clients.filter(is_active=True).count()  # Assuming is_active indicates online status
+    total_overlays = Overlay.objects.count()  # Total overlays, not just active
+    unique_users = Overlay.objects.values('user').distinct().count() if Overlay.objects.exists() else 1
+    avg_overlays_per_user = total_overlays / unique_users if unique_users else 0
+
+    # Overlays per user
+    overlays_per_user = (Overlay.objects.values('user__username')
+                        .annotate(count=Count('id'))
+                        .order_by('user__username')
+                        .values_list('user__username', 'count'))
+    overlays_per_user_dict = dict(overlays_per_user)
+
+    # Client activities (simplified: count of demands or overlays created today)
+    from django.utils import timezone
+    today = timezone.now().date()
+    clients_with_activities = []
+    for client in clients:
+        # Count demands created today
+        demand_count = DemandeOverlay.objects.filter(client=client, created_at__date=today).count()
+        # Count overlays created today
+        overlay_count = Overlay.objects.filter(user=client, created_at__date=today).count()
+        activities = f"{demand_count} demands, {overlay_count} overlays" if demand_count or overlay_count else "No activity"
+        clients_with_activities.append({
+            'name': client.username,  # Using username as client name
+            'ip_address': client.email,  # Placeholder; replace with actual IP if available
+            'status': 'Online' if client.is_active else 'Offline',
+            'activities': activities
+        })
+
     context = {
         'VM_IP_ADDRESS': settings.VM_IP_ADDRESS,
         'demandes': demandes,
         'user': request.user,
         'overlay_info': overlay_info,
-        'skipped_overlays': skipped_overlays,  # Add to context
+        'skipped_overlays': skipped_overlays,
         'page_title': 'Admin Dashboard',
+        'total_clients': total_clients,
+        'active_clients': active_clients,
+        'total_overlays': total_overlays,
+        'avg_overlays_per_user': avg_overlays_per_user,
+        'overlays_per_user': overlays_per_user_dict,
+        'clients': clients_with_activities,
     }
     return render(request, 'Adminpages/dashboard.html', context)
+#--------------------------------------------------------------------------------------
 
+from django.utils import timezone
 
+@login_required
+@role_required('admin')
+def admin_clients_detailed_history(request, client_id):
+    client = get_object_or_404(CustomUser, id=client_id, role='client')
+    today = timezone.now().date()
+
+    # Activity history (e.g., demands and overlays created in the last 30 days)
+    activities = []
+    demands = DemandeOverlay.objects.filter(client=client, created_at__gte=timezone.now() - timezone.timedelta(days=30))
+    for demand in demands:
+        activities.append({
+            'date': demand.created_at,
+            'description': f"Created demand '{demand.name}'"
+        })
+    overlays = Overlay.objects.filter(user=client, created_at__gte=timezone.now() - timezone.timedelta(days=30))
+    for overlay in overlays:
+        activities.append({
+            'date': overlay.created_at,
+            'description': f"Created overlay '{overlay.name}'"
+        })
+    activities.sort(key=lambda x: x['date'], reverse=True)  # Sort by date, newest first
+
+    context = {
+        'user': client,
+        'activities': activities
+    }
+    return render(request, 'Adminpages/admin-clients-detailed-history.html', context)
+
+    
+#--------------------------------------------------------------------------------------
 def dijkstra(graph, start, end):
     """Find shortest path using Dijkstra's algorithm."""
     queue = [(0, start, [start])]
