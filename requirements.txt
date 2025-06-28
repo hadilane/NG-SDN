@@ -1,1 +1,1 @@
-django python-decouple mysqlclient requests paramiko Pillow influxdb reportlab
+django python-decouple mysqlclient requests paramiko Pillow influxdb reportlab django-widget-tweaks

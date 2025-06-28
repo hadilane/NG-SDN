@@ -42,4 +42,5 @@ urlpatterns = [
     path('notifications/read/', views.mark_notifications_read, name='mark_notifications_read'),
     path('demandes/delete/<int:demande_id>/', views.delete_demande, name='delete_demande'),
     path('generate-telemetry-report/', views.generate_telemetry_report, name='generate_telemetry_report'),
+    path('edit_profile/', views.edit_profile, name='edit_profile'),
 ]

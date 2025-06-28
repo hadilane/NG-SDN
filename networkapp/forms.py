@@ -96,3 +96,31 @@ class DemandeOverlayForm(forms.ModelForm):
 
         cleaned_data['configuration'] = {"overlay_segments": segments}
         return cleaned_data
+
+class ClientEditForm(forms.ModelForm):
+    class Meta:
+        model = CustomUser
+        fields = ['first_name', 'last_name', 'email', 'phone', 'department']
+        widgets = {
+            'department': forms.TextInput(attrs={'placeholder': 'Enter department'}),
+            'phone': forms.TextInput(attrs={'placeholder': 'Enter phone number'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields:
+            self.fields[field].required = False
+
+class AdminEditForm(forms.ModelForm):
+    class Meta:
+        model = CustomUser
+        fields = ['first_name', 'last_name', 'email', 'phone', 'department']
+        widgets = {
+            'department': forms.TextInput(attrs={'placeholder': 'Enter department'}),
+            'phone': forms.TextInput(attrs={'placeholder': 'Enter phone number'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields:
+            self.fields[field].required = False

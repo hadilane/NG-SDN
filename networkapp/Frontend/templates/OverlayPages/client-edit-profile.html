@@ -1,0 +1,60 @@
+{% extends "home.html" %}
+{% load static %}
+{% load widget_tweaks %}
+
+{% block title %}Edit Profile - NG-SDN{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient-to-br from-gray-100 via-white to-gray-200 flex items-center justify-center py-8 px-4 sm:px-6 lg:px-8" style="background: linear-gradient(to bottom right, #F5F6F5, #FFFFFF, #ECECEC);">
+    <div class="w-full max-w-4xl bg-gradient-to-br from-#87CEEB33 to-gray-100 text-gray-800 shadow-xl rounded-2xl overflow-hidden border-2 border-gray-300 transform transition-all duration-300 hover:scale-101 hover:shadow-2xl" style="background: linear-gradient(to bottom right, rgba(135, 206, 235, 0.2), #F8FAFC);">
+        <!-- Header -->
+        <div class="p-6 bg-#87CEEB1A border-b-2 border-#87CEEB40 relative" style="background-color: rgba(135, 206, 235, 0.1); border-bottom-color: rgba(135, 206, 235, 0.25);">
+            <div class="flex justify-center items-center">
+                <div class="w-16 h-2 bg-#4A4A4A rounded-full mr-3" style="background-color: #4A4A4A;"></div>
+                <h5 class="text-3xl font-extrabold tracking-tight text-#4682B4 drop-shadow-sm" style="color: #4682B4;">Edit Profile</h5>
+                <div class="w-16 h-2 bg-#4A4A4A rounded-full ml-3" style="background-color: #4A4A4A;"></div>
+            </div>
+            <div class="absolute top-2 right-2 w-10 h-10 bg-#3333334D rounded-full opacity-30 animate-pulse" style="background-color: rgba(51, 51, 51, 0.3);"></div>
+        </div>
+
+        <!-- Form Section -->
+        <div class="p-6 bg-gray-50">
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="p-4 mb-4 bg-green-100 text-green-800 rounded-xl text-center" role="alert">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+            <form method="post" class="space-y-4">
+                {% csrf_token %}
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="p-4 bg-white rounded-xl border-l-4 border-#87CEEB66" style="border-left-color: rgba(135, 206, 235, 0.4);">
+                        <label for="{{ form.first_name.id_for_label }}" class="text-#4682B4 font-semibold text-lg" style="color: #4682B4;">First Name:</label>
+                        {{ form.first_name|add_class:"w-full p-2 mt-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-#4682B4" }}
+                    </div>
+                    <div class="p-4 bg-white rounded-xl border-l-4 border-#87CEEB66" style="border-left-color: rgba(135, 206, 235, 0.4);">
+                        <label for="{{ form.last_name.id_for_label }}" class="text-#4682B4 font-semibold text-lg" style="color: #4682B4;">Last Name:</label>
+                        {{ form.last_name|add_class:"w-full p-2 mt-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-#4682B4" }}
+                    </div>
+                    <div class="p-4 bg-white rounded-xl border-l-4 border-#87CEEB66" style="border-left-color: rgba(135, 206, 235, 0.4);">
+                        <label for="{{ form.email.id_for_label }}" class="text-#4682B4 font-semibold text-lg" style="color: #4682B4;">Email Address:</label>
+                        {{ form.email|add_class:"w-full p-2 mt-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-#4682B4" }}
+                    </div>
+                    <div class="p-4 bg-white rounded-xl border-l-4 border-#87CEEB66" style="border-left-color: rgba(135, 206, 235, 0.4);">
+                        <label for="{{ form.phone.id_for_label }}" class="text-#4682B4 font-semibold text-lg" style="color: #4682B4;">Phone Number:</label>
+                        {{ form.phone|add_class:"w-full p-2 mt-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-#4682B4" }}
+                    </div>
+                    <div class="p-4 bg-white rounded-xl border-l-4 border-#87CEEB66 col-span-2" style="border-left-color: rgba(135, 206, 235, 0.4);">
+                        <label for="{{ form.department.id_for_label }}" class="text-#4682B4 font-semibold text-lg" style="color: #4682B4;">Department:</label>
+                        {{ form.department|add_class:"w-full p-2 mt-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-#4682B4" }}
+                    </div>
+                </div>
+                <div class="p-6 bg-gray-50 flex justify-center">
+                    <button type="submit" class="px-6 py-3 bg-#4682B4 text-white font-extrabold text-base rounded-xl hover:bg-#4169E1 focus:outline-none focus:ring-4 focus:ring-#4682B4 focus:ring-opacity-70 transition duration-300 transform hover:-translate-y-1"style="background-color: #4682B4; hover:bg-color: #4169E1; focus:ring-color: #4682B4;">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

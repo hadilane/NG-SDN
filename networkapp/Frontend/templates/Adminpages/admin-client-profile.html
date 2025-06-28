@@ -5,9 +5,9 @@
 
 {% block content %}
 <div class="min-h-screen bg-gradient-to-br from-gray-100 via-white to-gray-200 flex items-center justify-center py-8 px-4 sm:px-6 lg:px-8" style="background: linear-gradient(to bottom right, #F5F6F5, #FFFFFF, #ECECEC);">
-    <div class="w-full max-w-4xl bg-gradient-to-br from-#87CEEB33 to-gray-100 text-gray-800 shadow-xl rounded-2xl overflow-hidden border-2 border-gray-300 transform transition-all duration-300 hover:scale-101 hover:shadow-2xl" style="background: linear-gradient(to bottom right, rgba(135, 206, 235, 0.2), #F8FAFC);">
+    <div class="w-full max-w-4xl bg-gradient-to-br from-#87CEEB33 to-gray-100 text-gray-800 shadow-xl rounded-2xl overflow-hidden border-2 border-gray-300 transform transition-all duration-300 hover:scale-101 hover:shadow-2xl" style="background: linear-gradient(to bottom right, #87ceeb33, #F8FAFC);">
         <!-- Header with Name and Decorative Elements -->
-        <div class="p-6 bg-#87CEEB1A border-b-2 border-#87CEEB40 relative" style="background-color: rgba(135, 206, 235, 0.1); border-bottom-color: rgba(135, 206, 235, 0.25);">
+        <div class="p-6 bg-#87CEEB1A border-b-2 border-#87CEEB40 relative" style="background-color: rgba(135, 206, 235, 0.1); border-bottom-color: #87ceeb40;">
             <div class="flex justify-center items-center">
                 <div class="w-16 h-2 bg-#4A4A4A rounded-full mr-3" style="background-color: #4A4A4A;"></div>
                 <h5 class="text-3xl font-extrabold tracking-tight text-#4682B4 drop-shadow-sm" style="color: #4682B4;">{{ user.username }}</h5>
@@ -75,8 +75,8 @@
         <!-- Buttons -->
         <div class="p-6 bg-gray-50 flex justify-center space-x-4">
             <a href="{% url 'overlays_list' %}" class="px-6 py-3 bg-#4682B4 text-white font-extrabold text-base rounded-xl hover:bg-#4169E1 focus:outline-none focus:ring-4 focus:ring-#4682B4 focus:ring-opacity-70 transition duration-300 transform hover:-translate-y-1" style="background-color: #4682B4; hover:bg-color: #4169E1; focus:ring-color: #4682B4;">View Overlays</a>
-            <a href="{% url 'admin_clients_detailed_history' user.id %}" class="px-6 py-3 bg-#A3BFFA text-#374151 font-extrabold text-base rounded-xl hover:bg-#8FACF7 focus:outline-none focus:ring-4 focus:ring-#A3BFFA focus:ring-opacity-70 transition duration-300 transform hover:-translate-y-1" style="background-color: #3b91b0; hover:bg-color: #8FACF7; focus:ring-color: #A3BFFA;">View Detailed History</a>
-        </div>
+           <a href="{% url 'admin_clients_detailed_history' user.id %}" class="px-6 py-3 bg-[#A3BFFA] text-white text-base font-extrabold rounded-xl hover:bg-[#8FACF7] focus:outline-none focus:ring-4 focus:ring-[#A3BFFA] focus:ring-opacity-70 transition duration-300 transform hover:-translate-y-1" style="background-color: #4682B4;">View Detailed History</a>
+         </div>
     </div>
 </div>
 {% endblock %}

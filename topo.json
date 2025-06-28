@@ -1,13 +1,12 @@
 {
-
-"overlay_name": "Overlay-demo",
+"overlay_name": "Overlay2",
 "overlay_type": "IPv6Overlay",
 "overlay_status": "Active",
-"overlay_description": "this is an overlay to route the photos trafic",
+"overlay_description": "this is an overlay to route the texts trafic",
 "overlay_tunnel_mode": "VXLAN",
 
 "overlay_segments": [
- {"device_name": "device:r1", "device_LAN_interface": "r1-eth3"},
- {"device_name": "device:r5", "device_LAN_interface": "r5-eth3"}]
+ {"device_name": "device:r9", "device_LAN_interface": "r1-eth9"},
+ {"device_name": "device:r2", "device_LAN_interface": "r5-eth4"}]
 
 }

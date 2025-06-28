@@ -1000,6 +1000,18 @@ def demande_detail_client(request, demande_id):
         'page_title': f"Demande detail: {demande.name}"
     })
 
+
+
+#----------------------------------------------------------------------------------------
+
+# Constants
+VM_HOST = "193.194.66.123"  # VM IP
+VM_USERNAME = "ubuntu"
+VM_PASSWORD = "test"
+REMOTE_DIR = "/home/ubuntu/p4-srv6-INT/overlays"
+EXECUTE_SCRIPT = "overlay_manager.py"  # Name of the Python script to execute
+SSH_TIMEOUT = 30  # Timeout for SSH connection in seconds
+
 @login_required
 @role_required('admin')
 def valider_demande_overlay(request, demande_id):
@@ -1062,9 +1074,9 @@ def valider_demande_overlay(request, demande_id):
             'page_title': f"Valider Demande: {demande.name}"
         })
 
-    # Compute shortest path
-    path = dijkstra(graph, src_device, dst_device)
-    if not path:
+    # Compute shortest path using Dijkstra
+    underlay_path = dijkstra(graph, src_device, dst_device)
+    if not underlay_path:
         logger.warning("No path found for demande %s between %s and %s", demande.name, src_device, dst_device)
         return render(request, 'Adminpages/valider_demande.html', {
             'demande': demande,
@@ -1078,7 +1090,9 @@ def valider_demande_overlay(request, demande_id):
         demande.reviewed_at = timezone.now()
         demande.save()
 
-        # Create Overlay
+        # Create Overlay and determine overlay number
+        existing_overlays = Overlay.objects.count()
+        overlay_number = f"overlay{existing_overlays + 1}"
         overlay = Overlay.objects.create(
             user=demande.client,
             name=demande.name,
@@ -1089,68 +1103,125 @@ def valider_demande_overlay(request, demande_id):
             configuration=demande.configuration.get('overlay_segments', {})
         )
 
-        # Handle script uploads
-        fs = FileSystemStorage(location=os.path.join(settings.MEDIA_ROOT, 'scripts'))
-        config_scripts = {}
-        for switch in path:
-            script_key = f'script_{switch}'
-            if script_key not in request.FILES:
-                logger.error("Missing script for switch %s in demande %s", switch, demande.name)
+        # Handle .txt file uploads
+        config_files = {}
+        for switch in underlay_path:
+            config_key = f'config_{switch}'
+            if config_key not in request.FILES:
+                logger.error("Missing config file for switch %s in demande %s", switch, demande.name)
                 overlay.delete()  # Roll back overlay creation
                 demande.status = 'en_attente'
                 demande.save()
                 return render(request, 'Adminpages/valider_demande.html', {
                     'demande': demande,
-                    'underlay_path': path,
-                    'error_message': f"Missing script for switch {switch}.",
+                    'underlay_path': underlay_path,
+                    'error_message': f"Missing config file for switch {switch}.",
                     'page_title': f"Valider Demande: {demande.name}"
                 })
-            script_file = request.FILES[script_key]
-            if not script_file.name.endswith('.py'):
-                logger.error("Invalid file type for switch %s: %s", switch, script_file.name)
+            config_file = request.FILES[config_key]
+            if not config_file.name.endswith('.txt'):
+                logger.error("Invalid file type for switch %s: %s", switch, config_file.name)
                 overlay.delete()
                 demande.status = 'en_attente'
                 demande.save()
                 return render(request, 'Adminpages/valider_demande.html', {
                     'demande': demande,
-                    'underlay_path': path,
-                    'error_message': f"File for {switch} must be a .py file.",
+                    'underlay_path': underlay_path,
+                    'error_message': f"File for {switch} must be a .txt file.",
                     'page_title': f"Valider Demande: {demande.name}"
                 })
-            filename = f"overlay_{overlay.id}_{switch.replace(':', '_')}.py"
-            saved_path = fs.save(filename, script_file)
-            config_scripts[switch] = os.path.join('scripts', saved_path)  # Store relative path
+            filename = f"overlay_{overlay.id}_{switch.replace(':', '_')}.txt"
+            local_path = os.path.join(settings.MEDIA_ROOT, 'configs', filename)  # Store locally first
+            os.makedirs(os.path.dirname(local_path), exist_ok=True)
+            with open(local_path, 'wb+') as destination:
+                for chunk in config_file.chunks():
+                    destination.write(chunk)
+            config_files[switch] = local_path
 
-        """
-        # Commented out: Script execution on VM
+        # SSH to VM and transfer files
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         try:
-            ssh.connect('192.168.214.133', username='p4sdn', password='p4sdn', timeout=10)
-            for switch, script_path in config_scripts.items():
-                # Copy script to VM
-                with ssh.open_sftp() as sftp:
-                    local_path = os.path.join(settings.MEDIA_ROOT, script_path)
-                    remote_path = f"/tmp/{os.path.basename(script_path)}"
+            logger.info("Attempting SSH connection to %s with user %s", VM_HOST, VM_USERNAME)
+            ssh.connect(VM_HOST, username=VM_USERNAME, password=VM_PASSWORD, timeout=SSH_TIMEOUT)
+            logger.info("SSH connection established")
+
+            # Verify remote directory exists
+            with ssh.open_sftp() as sftp:
+                try:
+                    sftp.stat(REMOTE_DIR)
+                    logger.info("Remote directory %s exists", REMOTE_DIR)
+                except IOError:
+                    logger.error("Remote directory %s does not exist or is inaccessible", REMOTE_DIR)
+                    raise Exception(f"Remote directory {REMOTE_DIR} not found")
+
+                # Transfer files to the correct overlays directory
+                for switch, local_path in config_files.items():
+                    remote_filename = os.path.basename(local_path)
+                    remote_path = os.path.join(REMOTE_DIR, remote_filename).replace("\\", "/")  # Ensure forward slashes
                     sftp.put(local_path, remote_path)
-                # Execute script
-                cmd = f"python3 {remote_path}"
-                stdin, stdout, stderr = ssh.exec_command(cmd)
-                exit_status = stdout.channel.recv_exit_status()
-                output = stdout.read().decode()
-                error = stderr.read().decode()
-                if exit_status != 0:
-                    logger.error("Script execution failed for %s: %s", switch, error)
-                    overlay.delete()
-                    demande.status = 'en_attente'
-                    demande.save()
-                    return render(request, 'Adminpages/valider_demande.html', {
-                        'demande': demande,
-                        'underlay_path': path,
-                        'error_message': f"Script execution failed for {switch}: {error}",
-                        'page_title': f"Valider Demande: {demande.name}"
-                    })
-                logger.info("Script executed for %s: %s", switch, output)
+                    logger.info("Transferred config file for %s to %s", switch, remote_path)
+
+                # Check if script exists before execution
+                script_path = os.path.join(REMOTE_DIR, EXECUTE_SCRIPT).replace("\\", "/")
+                try:
+                    sftp.stat(script_path)
+                    logger.info("Script %s found on VM", script_path)
+                except IOError:
+                    logger.error("Script %s not found on VM", script_path)
+                    raise Exception(f"Script {script_path} not found on VM")
+
+            # Execute the Python script with parameters
+            action = "insert"
+            cmd = f"python3 {os.path.join(REMOTE_DIR, EXECUTE_SCRIPT).replace('\\', '/') } {action} {overlay_number}"
+            logger.info("Executing command: %s", cmd)
+            stdin, stdout, stderr = ssh.exec_command(cmd)
+            exit_status = stdout.channel.recv_exit_status()
+            output = stdout.read().decode()
+            error = stderr.read().decode()
+            logger.debug("Script output: %s, Error: %s", output, error)
+            if exit_status != 0:
+                logger.error("Script execution failed: %s", error)
+                with ssh.open_sftp() as sftp:
+                    for switch in config_files:
+                        remote_path = os.path.join(REMOTE_DIR, f"overlay_{overlay.id}_{switch.replace(':', '_')}.txt").replace("\\", "/")
+                        try:
+                            sftp.remove(remote_path)  # Clean up on failure
+                            logger.info("Cleaned up file %s", remote_path)
+                        except Exception as cleanup_err:
+                            logger.warning("Failed to clean up file %s: %s", remote_path, str(cleanup_err))
+                overlay.delete()
+                demande.status = 'en_attente'
+                demande.save()
+                return render(request, 'Adminpages/valider_demande.html', {
+                    'demande': demande,
+                    'underlay_path': underlay_path,
+                    'error_message': f"Script execution failed: {error}",
+                    'page_title': f"Valider Demande: {demande.name}"
+                })
+            logger.info("Script executed successfully: %s", output)
+        except paramiko.AuthenticationException as auth_err:
+            logger.error("SSH authentication failed: %s", str(auth_err))
+            overlay.delete()
+            demande.status = 'en_attente'
+            demande.save()
+            return render(request, 'Adminpages/valider_demande.html', {
+                'demande': demande,
+                'underlay_path': underlay_path,
+                'error_message': f"SSH authentication failed: {str(auth_err)}",
+                'page_title': f"Valider Demande: {demande.name}"
+            })
+        except paramiko.SSHException as ssh_err:
+            logger.error("SSH connection failed: %s", str(ssh_err))
+            overlay.delete()
+            demande.status = 'en_attente'
+            demande.save()
+            return render(request, 'Adminpages/valider_demande.html', {
+                'demande': demande,
+                'underlay_path': underlay_path,
+                'error_message': f"SSH connection failed: {str(ssh_err)}",
+                'page_title': f"Valider Demande: {demande.name}"
+            })
         except Exception as e:
             logger.error("SSH execution failed: %s", str(e))
             overlay.delete()
@@ -1158,37 +1229,43 @@ def valider_demande_overlay(request, demande_id):
             demande.save()
             return render(request, 'Adminpages/valider_demande.html', {
                 'demande': demande,
-                'underlay_path': path,
+                'underlay_path': underlay_path,
                 'error_message': f"Failed to execute scripts: {str(e)}",
                 'page_title': f"Valider Demande: {demande.name}"
             })
         finally:
             ssh.close()
-        """
+            # Clean up local files
+            for local_path in config_files.values():
+                if os.path.exists(local_path):
+                    os.remove(local_path)
+                    logger.info("Cleaned up local file: %s", local_path)
 
-        # Save underlay network with scripts
+        # Save underlay network with config files (relative paths)
+        config_paths = {switch: os.path.join(REMOTE_DIR, f"overlay_{overlay.id}_{switch.replace(':', '_')}.txt").replace("\\", "/") for switch in underlay_path}
         UnderlayNetwork.objects.create(
             overlay=overlay,
-            switches=path,
-            config_scripts=config_scripts
+            switches=underlay_path,
+            config_scripts=config_paths
         )
 
         # Update notifications and send email
         Notification.objects.filter(demand=demande).update(is_read=True)
         send_mail(
             'Demande validée',
-            f"Votre demande d'overlay '{demande.name}' a été validée. Scripts ont été enregistrés.",
+            f"Votre demande d'overlay '{demande.name}' a été validée. Fichiers de configuration ont été transférés.",
             settings.DEFAULT_FROM_EMAIL,
             [demande.client.email]
         )
-        messages.success(request, "Demande validated, scripts saved, and overlay created.")
+        messages.success(request, "Demande validated, config files transferred, and overlay created.")
         return redirect('liste_demandes_admin')
     
     return render(request, 'Adminpages/valider_demande.html', {
         'demande': demande,
-        'underlay_path': path,
+        'underlay_path': underlay_path,
         'page_title': f"Valider Demande: {demande.name}"
     })
+#----------------------------------------------------------------------------------------
 
 @login_required
 @role_required('admin')
@@ -1403,6 +1480,32 @@ def generate_telemetry_report(request):
                 os.unlink(pdf_path)
             except Exception:
                 pass  # Ensure cleanup attempt, but don’t fail the response
+
+
+
+
+@login_required
+def edit_profile(request):
+    if request.user.is_staff:
+        if request.method == 'POST':
+            form = AdminEditForm(request.POST, instance=request.user)
+            if form.is_valid():
+                form.save()
+                messages.success(request, 'Profile updated successfully!')
+                return redirect('admin_profile')
+        else:
+            form = AdminEditForm(instance=request.user)
+        return render(request, 'Adminpages/admin-edit-profile.html', {'page_title': "Edit Profile",'form': form})
+    else:
+        if request.method == 'POST':
+            form = ClientEditForm(request.POST, instance=request.user)
+            if form.is_valid():
+                form.save()
+                messages.success(request, 'Profile updated successfully!')
+                return redirect('client_profile')
+        else:
+            form = ClientEditForm(instance=request.user)
+        return render(request,  'OverlayPages/client-edit-profile.html', {'page_title': "Edit Profile",'form': form})
 
 
 # @staff_member_required
